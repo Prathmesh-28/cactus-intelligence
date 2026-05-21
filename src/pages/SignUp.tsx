@@ -1,43 +1,25 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { CactusLogo } from '../components/CactusLogo';
-import { auth, setToken } from '../lib/api';
 import { useAuth } from '../context/AuthContext';
 
 export function SignUp() {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [confirm, setConfirm] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const { setUser } = useAuth();
+  const { signUp } = useAuth();
   const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-
-    if (password !== confirm) {
-      setError('Passwords do not match');
-      return;
-    }
-    if (password.length < 8) {
-      setError('Password must be at least 8 characters');
-      return;
-    }
-
     setLoading(true);
-    try {
-      const { token, user } = await auth.register(email, name, password);
-      setToken(token);
-      setUser(user);
-      navigate('/');
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Registration failed');
-    } finally {
-      setLoading(false);
-    }
+    const { error: err } = await signUp(email, name, password);
+    setLoading(false);
+    if (err) { setError(err); return; }
+    navigate('/');
   };
 
   return (
@@ -76,15 +58,8 @@ export function SignUp() {
               <label className="block text-xs font-medium text-[#4A5E52] mb-1.5 uppercase tracking-wide">Password</label>
               <input
                 type="password" value={password} onChange={e => setPassword(e.target.value)}
-                required placeholder="Min. 8 characters"
-                className="w-full px-4 py-2.5 rounded-lg border border-[#E8EDE9] bg-[#F8F6F1] text-[#0F1A14] text-sm outline-none focus:border-[#2E6B4F] focus:ring-1 focus:ring-[#2E6B4F] transition-colors"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-[#4A5E52] mb-1.5 uppercase tracking-wide">Confirm Password</label>
-              <input
-                type="password" value={confirm} onChange={e => setConfirm(e.target.value)}
-                required placeholder="Re-enter password"
+                required placeholder="Min. 6 characters"
+                minLength={6}
                 className="w-full px-4 py-2.5 rounded-lg border border-[#E8EDE9] bg-[#F8F6F1] text-[#0F1A14] text-sm outline-none focus:border-[#2E6B4F] focus:ring-1 focus:ring-[#2E6B4F] transition-colors"
               />
             </div>
@@ -108,11 +83,7 @@ export function SignUp() {
             </Link>
           </p>
         </div>
-
-        <p className="mt-4 text-center text-xs text-[#9BB0A1]">
-          Registration is restricted to Cactus Partners email addresses.
-        </p>
-        <p className="text-center text-xs text-[#9BB0A1]">Cactus Partners · cactusvp.com</p>
+        <p className="mt-4 text-center text-xs text-[#9BB0A1]">Cactus Partners · cactusvp.com</p>
       </div>
     </div>
   );

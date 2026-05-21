@@ -57,6 +57,9 @@ export const auth = {
   register: (email: string, name: string, password: string) =>
     post<{ token: string; user: ApiUser }>('/api/auth/register', { email, name, password }),
 
+  firebaseSync: (idToken: string) =>
+    post<{ token: string; user: ApiUser }>('/api/auth/firebase-sync', { idToken }),
+
   me: () => get<{ user: ApiUser }>('/api/auth/me'),
 
   changePassword: (currentPassword: string, newPassword: string) =>

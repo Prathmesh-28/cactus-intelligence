@@ -6,7 +6,6 @@ import { useAuth } from '../context/AuthContext';
 export function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [rememberMe, setRememberMe] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const { signIn } = useAuth();
@@ -18,7 +17,7 @@ export function Login() {
     e.preventDefault();
     setError('');
     setLoading(true);
-    const { error: err } = await signIn(email, password, rememberMe);
+    const { error: err } = await signIn(email, password);
     setLoading(false);
     if (err) { setError(err); return; }
     navigate(state?.redirect ?? '/', { state });
@@ -58,14 +57,6 @@ export function Login() {
                 className="w-full px-4 py-2.5 rounded-lg border border-[#E8EDE9] bg-[#F8F6F1] text-[#0F1A14] text-sm outline-none focus:border-[#2E6B4F] focus:ring-1 focus:ring-[#2E6B4F] transition-colors"
               />
             </div>
-
-            <label className="flex items-center gap-2 cursor-pointer">
-              <input
-                type="checkbox" checked={rememberMe} onChange={e => setRememberMe(e.target.checked)}
-                className="w-4 h-4 accent-[#2E6B4F] rounded"
-              />
-              <span className="text-sm text-[#4A5E52]">Remember me for 7 days</span>
-            </label>
 
             {error && (
               <p className="text-sm text-[#C0392B] bg-[#C0392B]/8 border border-[#C0392B]/20 rounded-lg px-3 py-2">{error}</p>

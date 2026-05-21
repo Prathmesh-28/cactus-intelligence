@@ -102,6 +102,73 @@ authRouter.post('/register', async (req, res) => {
   }
 });
 
+// POST /api/auth/firebase-sync — exchange Firebase ID token for our JWT
+authRouter.post('/firebase-sync', async (req, res) => {
+  try {
+    const { idToken } = req.body as { idToken: string };
+    if (!idToken) { res.status(400).json({ error: 'idToken required' }); return; }
+
+    const apiKey = process.env.FIREBASE_API_KEY;
+    if (!apiKey) { res.status(500).json({ error: 'Firebase not configured on server' }); return; }
+
+    // Verify with Google
+    const googleRes = await fetch(
+      `https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=${apiKey}`,
+      { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ idToken }) }
+    );
+    if (!googleRes.ok) { res.status(401).json({ error: 'Invalid Firebase token' }); return; }
+
+    const googleData = await googleRes.json() as {
+      users?: Array<{ email: string; displayName?: string; localId: string }>;
+    };
+    const fbUser = googleData.users?.[0];
+    if (!fbUser?.email) { res.status(401).json({ error: 'Could not retrieve Firebase user' }); return; }
+
+    const email = fbUser.email.toLowerCase();
+    const displayName = fbUser.displayName || email.split('@')[0];
+
+    // Find or auto-create in PostgreSQL
+    let dbUser = await queryOne<DbUser>(
+      'SELECT * FROM users WHERE email = $1',
+      [email]
+    );
+
+    if (!dbUser) {
+      const domain = email.split('@')[1];
+      const setting = await queryOne<{ value: unknown }>(
+        "SELECT value FROM settings WHERE key = 'allowed_email_domains'"
+      );
+      const allowed = (setting?.value as string[]) ?? ['cactuspartners.in'];
+      if (allowed.length > 0 && !allowed.includes(domain)) {
+        res.status(403).json({ error: `Registration not allowed for domain: ${domain}` });
+        return;
+      }
+
+      const [created] = await query<DbUser>(
+        `INSERT INTO users (email, name, password_hash, role, is_active)
+         VALUES ($1, $2, '', 'analyst', TRUE)
+         ON CONFLICT (email) DO UPDATE SET name = EXCLUDED.name, is_active = TRUE
+         RETURNING *`,
+        [email, displayName]
+      );
+      dbUser = created;
+    }
+
+    if (!dbUser.is_active) {
+      res.status(403).json({ error: 'Account is deactivated. Contact your admin.' });
+      return;
+    }
+
+    await query('UPDATE users SET last_login = NOW() WHERE id = $1', [dbUser.id]);
+
+    const token = signToken({ sub: dbUser.id, email: dbUser.email, role: dbUser.role, name: dbUser.name });
+    res.json({ token, user: { id: dbUser.id, email: dbUser.email, name: dbUser.name, role: dbUser.role } });
+  } catch (err) {
+    console.error('Firebase sync error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // GET /api/auth/me — validate token + return current user
 authRouter.get('/me', verifyToken, async (req: AuthRequest, res) => {
   const user = await queryOne<DbUser>(
