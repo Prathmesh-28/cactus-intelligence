@@ -1,0 +1,71 @@
+service: cactus-intelligence-api
+frameworkVersion: '3'
+
+provider:
+  name: aws
+  runtime: nodejs20.x
+  region: ap-south-1       # Mumbai — closest to India
+  memorySize: 1024
+  timeout: 29              # API Gateway hard limit; pipeline uses async poll
+  environment:
+    DATABASE_URL: ${env:DATABASE_URL}
+    JWT_SECRET: ${env:JWT_SECRET}
+    ANTHROPIC_API_KEY: ${env:ANTHROPIC_API_KEY}
+    LUSHA_API_KEY: ${env:LUSHA_API_KEY}
+    FRONTEND_URL: ${env:FRONTEND_URL, 'https://cactus-intelligence.vercel.app'}
+    NODE_ENV: ${opt:stage, 'dev'}
+  httpApi:
+    cors:
+      allowedOrigins:
+        - https://cactus-intelligence.vercel.app
+        - http://localhost:5173
+      allowedHeaders:
+        - Content-Type
+        - Authorization
+      allowedMethods:
+        - GET
+        - POST
+        - PUT
+        - PATCH
+        - DELETE
+        - OPTIONS
+      allowCredentials: false
+
+plugins:
+  - serverless-plugin-typescript
+  - serverless-offline
+
+custom:
+  serverless-offline:
+    httpPort: 4000
+    noPrependStageInUrl: true
+
+functions:
+  # All standard API routes (fast, <29s)
+  api:
+    handler: src/lambda.handler
+    events:
+      - httpApi:
+          path: /api/{proxy+}
+          method: ANY
+      - httpApi:
+          path: /api
+          method: ANY
+
+  # Pipeline steps — uses Lambda Function URL (no API GW timeout)
+  # Each step is invoked independently and writes back to DB
+  pipeline:
+    handler: src/lambda.pipelineHandler
+    timeout: 300           # 5 minutes per step (Lambda max for sync is 15min)
+    memorySize: 1024
+    url:
+      cors:
+        allowedOrigins:
+          - https://cactus-intelligence.vercel.app
+          - http://localhost:5173
+        allowedHeaders:
+          - Content-Type
+          - Authorization
+        allowedMethods:
+          - POST
+          - OPTIONS
