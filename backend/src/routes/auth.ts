@@ -45,6 +45,63 @@ authRouter.post('/login', async (req, res) => {
   }
 });
 
+// POST /api/auth/register — self-registration (domain-restricted)
+authRouter.post('/register', async (req, res) => {
+  try {
+    const { email, name, password } = req.body as {
+      email: string; name: string; password: string;
+    };
+
+    if (!email || !password || !name) {
+      res.status(400).json({ error: 'Email, name and password are required' });
+      return;
+    }
+    if (password.length < 8) {
+      res.status(400).json({ error: 'Password must be at least 8 characters' });
+      return;
+    }
+
+    const normalizedEmail = email.toLowerCase().trim();
+    const domain = normalizedEmail.split('@')[1];
+
+    // Check allowed domains from settings
+    const setting = await queryOne<{ value: unknown }>(
+      "SELECT value FROM settings WHERE key = 'allowed_email_domains'"
+    );
+    const allowedDomains = (setting?.value as string[] | null) ?? ['cactuspartners.in'];
+    if (allowedDomains.length > 0 && !allowedDomains.includes(domain)) {
+      res.status(403).json({
+        error: `Registration is restricted to: ${allowedDomains.join(', ')}`,
+      });
+      return;
+    }
+
+    const existing = await queryOne<DbUser>(
+      'SELECT id FROM users WHERE email = $1', [normalizedEmail]
+    );
+    if (existing) {
+      res.status(409).json({ error: 'An account with this email already exists' });
+      return;
+    }
+
+    const hash = await bcrypt.hash(password, 12);
+    const [user] = await query<DbUser>(
+      `INSERT INTO users (email, name, password_hash, role, is_active)
+       VALUES ($1, $2, $3, 'analyst', TRUE) RETURNING id, email, name, role`,
+      [normalizedEmail, name.trim(), hash]
+    );
+
+    const token = signToken({ sub: user.id, email: user.email, role: user.role, name: user.name });
+    res.status(201).json({
+      token,
+      user: { id: user.id, email: user.email, name: user.name, role: user.role },
+    });
+  } catch (err) {
+    console.error('Register error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // GET /api/auth/me — validate token + return current user
 authRouter.get('/me', verifyToken, async (req: AuthRequest, res) => {
   const user = await queryOne<DbUser>(

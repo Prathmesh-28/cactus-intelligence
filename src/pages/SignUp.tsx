@@ -1,27 +1,43 @@
 import { useState } from 'react';
-import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { CactusLogo } from '../components/CactusLogo';
+import { auth, setToken } from '../lib/api';
 import { useAuth } from '../context/AuthContext';
 
-export function Login() {
+export function SignUp() {
+  const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [rememberMe, setRememberMe] = useState(false);
+  const [confirm, setConfirm] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const { signIn } = useAuth();
+  const { setUser } = useAuth();
   const navigate = useNavigate();
-  const location = useLocation();
-  const state = location.state as { redirect?: string; companyName?: string } | null;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+
+    if (password !== confirm) {
+      setError('Passwords do not match');
+      return;
+    }
+    if (password.length < 8) {
+      setError('Password must be at least 8 characters');
+      return;
+    }
+
     setLoading(true);
-    const { error: err } = await signIn(email, password, rememberMe);
-    setLoading(false);
-    if (err) { setError(err); return; }
-    navigate(state?.redirect ?? '/', { state });
+    try {
+      const { token, user } = await auth.register(email, name, password);
+      setToken(token);
+      setUser(user);
+      navigate('/');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Registration failed');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -33,17 +49,23 @@ export function Login() {
           </div>
 
           <h2 className="text-center text-xl text-[#0F1A14] mb-1" style={{ fontFamily: '"Playfair Display", serif' }}>
-            Sign in
+            Create Account
           </h2>
           <p className="text-center text-sm text-[#4A5E52] mb-6">
-            {state?.companyName
-              ? `You'll be redirected to analyse "${state.companyName}"`
-              : 'Access the Cactus Intelligence Platform'}
+            Join the Cactus Intelligence Platform
           </p>
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="block text-xs font-medium text-[#4A5E52] mb-1.5 uppercase tracking-wide">Email</label>
+              <label className="block text-xs font-medium text-[#4A5E52] mb-1.5 uppercase tracking-wide">Full Name</label>
+              <input
+                type="text" value={name} onChange={e => setName(e.target.value)}
+                required placeholder="Your full name"
+                className="w-full px-4 py-2.5 rounded-lg border border-[#E8EDE9] bg-[#F8F6F1] text-[#0F1A14] text-sm outline-none focus:border-[#2E6B4F] focus:ring-1 focus:ring-[#2E6B4F] transition-colors"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-[#4A5E52] mb-1.5 uppercase tracking-wide">Work Email</label>
               <input
                 type="email" value={email} onChange={e => setEmail(e.target.value)}
                 required placeholder="you@cactuspartners.in"
@@ -54,18 +76,18 @@ export function Login() {
               <label className="block text-xs font-medium text-[#4A5E52] mb-1.5 uppercase tracking-wide">Password</label>
               <input
                 type="password" value={password} onChange={e => setPassword(e.target.value)}
-                required placeholder="••••••••"
+                required placeholder="Min. 8 characters"
                 className="w-full px-4 py-2.5 rounded-lg border border-[#E8EDE9] bg-[#F8F6F1] text-[#0F1A14] text-sm outline-none focus:border-[#2E6B4F] focus:ring-1 focus:ring-[#2E6B4F] transition-colors"
               />
             </div>
-
-            <label className="flex items-center gap-2 cursor-pointer">
+            <div>
+              <label className="block text-xs font-medium text-[#4A5E52] mb-1.5 uppercase tracking-wide">Confirm Password</label>
               <input
-                type="checkbox" checked={rememberMe} onChange={e => setRememberMe(e.target.checked)}
-                className="w-4 h-4 accent-[#2E6B4F] rounded"
+                type="password" value={confirm} onChange={e => setConfirm(e.target.value)}
+                required placeholder="Re-enter password"
+                className="w-full px-4 py-2.5 rounded-lg border border-[#E8EDE9] bg-[#F8F6F1] text-[#0F1A14] text-sm outline-none focus:border-[#2E6B4F] focus:ring-1 focus:ring-[#2E6B4F] transition-colors"
               />
-              <span className="text-sm text-[#4A5E52]">Remember me for 7 days</span>
-            </label>
+            </div>
 
             {error && (
               <p className="text-sm text-[#C0392B] bg-[#C0392B]/8 border border-[#C0392B]/20 rounded-lg px-3 py-2">{error}</p>
@@ -75,18 +97,22 @@ export function Login() {
               type="submit" disabled={loading}
               className="w-full py-3 bg-[#3D9970] hover:bg-[#2E7D5A] disabled:opacity-60 text-white text-sm font-semibold rounded-lg transition-colors"
             >
-              {loading ? 'Signing in...' : 'Sign In'}
+              {loading ? 'Creating account...' : 'Create Account'}
             </button>
           </form>
 
           <p className="text-center text-sm text-[#4A5E52] mt-5">
-            Don't have an account?{' '}
-            <Link to="/signup" className="text-[#2E6B4F] font-semibold hover:underline">
-              Sign up
+            Already have an account?{' '}
+            <Link to="/login" className="text-[#2E6B4F] font-semibold hover:underline">
+              Sign in
             </Link>
           </p>
         </div>
-        <p className="mt-4 text-center text-xs text-[#9BB0A1]">Cactus Partners · cactusvp.com</p>
+
+        <p className="mt-4 text-center text-xs text-[#9BB0A1]">
+          Registration is restricted to Cactus Partners email addresses.
+        </p>
+        <p className="text-center text-xs text-[#9BB0A1]">Cactus Partners · cactusvp.com</p>
       </div>
     </div>
   );

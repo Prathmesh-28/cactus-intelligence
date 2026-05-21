@@ -54,6 +54,9 @@ export const auth = {
   login: (email: string, password: string, rememberMe?: boolean) =>
     post<{ token: string; user: ApiUser }>('/api/auth/login', { email, password, rememberMe }),
 
+  register: (email: string, name: string, password: string) =>
+    post<{ token: string; user: ApiUser }>('/api/auth/register', { email, name, password }),
+
   me: () => get<{ user: ApiUser }>('/api/auth/me'),
 
   changePassword: (currentPassword: string, newPassword: string) =>
