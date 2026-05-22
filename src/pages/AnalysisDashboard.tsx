@@ -20,7 +20,7 @@ export function AnalysisDashboard() {
   const companyName = state?.companyName
     || companySlug.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
 
-  const { analysis, loading, currentStep, errorStep, retryStep } = useAnalysis(companySlug, companyName);
+  const { analysis, loading, currentStep, errorStep, error, retryStep } = useAnalysis(companySlug, companyName);
   const [localAnalysis, setLocalAnalysis] = useState<ApiAnalysis | null>(null);
   const [activeTab, setActiveTab] = useState('overview');
   const [exporting, setExporting] = useState(false);
@@ -34,12 +34,13 @@ export function AnalysisDashboard() {
 
   const isPipelineRunning = currentStep < 6 && !errorStep;
 
-  if (loading || (isPipelineRunning && !display?.company_profile)) {
+  if (loading || (isPipelineRunning && !display?.company_profile) || (currentStep > 0 && currentStep < 6 && !errorStep)) {
     return (
       <PipelineProgress
         companyName={companyName}
-        currentStep={currentStep > 5 ? 5 : currentStep}
+        currentStep={Math.min(currentStep, 5)}
         errorStep={errorStep}
+        error={error}
         onRetry={retryStep}
       />
     );

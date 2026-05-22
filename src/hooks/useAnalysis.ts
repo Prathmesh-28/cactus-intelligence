@@ -34,8 +34,8 @@ export function useAnalysis(_companySlug: string, companyName: string) {
 
   const load = useCallback(async () => {
     setLoading(true);
+    setCurrentStep(1); // show spinner on step 1 immediately while creating
     try {
-      // Create or retrieve (cache check is server-side)
       const { analysis: created, cached } = await analyses.create(companyName);
       setAnalysis(created);
 
@@ -46,12 +46,12 @@ export function useAnalysis(_companySlug: string, companyName: string) {
       }
 
       setLoading(false);
-
-      // Resume from where it left off
       const resumeFrom = created.pipeline_step;
       await runPipeline(created.id, companyName, resumeFrom);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load analysis');
+      const msg = err instanceof Error ? err.message : 'Failed to reach server';
+      setError(msg);
+      setCurrentStep(0);
       setLoading(false);
     }
   }, [companyName, runPipeline]);
