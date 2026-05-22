@@ -99,11 +99,11 @@ export async function callAI(
   user: string,
   settings: Record<string, unknown>,
 ): Promise<string> {
-  const provider = (settings['ai_provider'] as AiProvider | undefined) ?? 'anthropic';
+  const provider = (settings['ai_provider'] as AiProvider | undefined) ?? 'google';
   const model =
     (settings['ai_model'] as string | undefined) ??
     (settings['anthropic_model'] as string | undefined) ??   // backwards compat
-    'claude-sonnet-4-6';
+    'gemini-2.0-flash';
 
   switch (provider) {
     case 'openai':   return callOpenAI(system, user, model);

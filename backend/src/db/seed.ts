@@ -26,12 +26,12 @@ const DEFAULT_SETTINGS = [
   },
   {
     key: 'ai_provider',
-    value: '"anthropic"',
+    value: '"google"',
     description: 'AI provider for the pipeline: anthropic | openai | google',
   },
   {
     key: 'ai_model',
-    value: '"claude-sonnet-4-6"',
+    value: '"gemini-2.0-flash"',
     description: 'Model ID for the selected provider. Must match the provider\'s model catalog.',
   },
   {
@@ -109,7 +109,7 @@ async function seed() {
       await client.query(
         `INSERT INTO settings (key, value, description)
          VALUES ($1, $2::jsonb, $3)
-         ON CONFLICT (key) DO NOTHING`,
+         ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, description = EXCLUDED.description`,
         [s.key, s.value, s.description]
       );
     }
