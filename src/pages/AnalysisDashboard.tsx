@@ -3,12 +3,14 @@ import { useParams, useLocation, Link } from 'react-router-dom';
 import { ChevronRight, RefreshCw, Download, Search } from 'lucide-react';
 import { CactusLogo } from '../components/CactusLogo';
 import { PipelineProgress } from '../components/PipelineProgress';
+import { ManualCompanyForm, type ManualCompanyData } from '../components/ManualCompanyForm';
 import { OverviewTab } from '../components/tabs/OverviewTab';
 import { OrgChartTab } from '../components/tabs/OrgChartTab';
 import { TalentInsightsTab } from '../components/tabs/TalentInsightsTab';
 import { InvestmentSignalsTab } from '../components/tabs/InvestmentSignalsTab';
 import { useAnalysis } from '../hooks/useAnalysis';
 import { exportPDF } from '../lib/exportPdf';
+import { analyses as analysesApi } from '../lib/api';
 import type { ApiAnalysis } from '../lib/api';
 import type { OrgChart } from '../types';
 
@@ -24,6 +26,8 @@ export function AnalysisDashboard() {
   const [localAnalysis, setLocalAnalysis] = useState<ApiAnalysis | null>(null);
   const [activeTab, setActiveTab] = useState('overview');
   const [exporting, setExporting] = useState(false);
+  const [showManualForm, setShowManualForm] = useState(false);
+  const [manualSubmitting, setManualSubmitting] = useState(false);
 
   // Merge backend data with any local edits
   const display = localAnalysis ?? analysis;
@@ -78,6 +82,19 @@ export function AnalysisDashboard() {
     if (activeTab === 'signals') return <InvestmentSignalsTab analysis={display} onUpdate={handleUpdate} />;
     return null;
   };
+
+  const handleManualSubmit = useCallback(async (data: ManualCompanyData) => {
+    if (!analysis) return;
+    setManualSubmitting(true);
+    try {
+      await analysesApi.patchProfile(analysis.id, data);
+      setLocalAnalysis(prev => prev ? { ...prev, company_profile: data as unknown as Record<string, unknown> } : null);
+      setShowManualForm(false);
+      await retryStep(2); // skip step 1, run from step 2
+    } finally {
+      setManualSubmitting(false);
+    }
+  }, [analysis, retryStep]);
 
   const handleExportPDF = async () => {
     if (!display) return;
@@ -160,17 +177,51 @@ export function AnalysisDashboard() {
         {/* Main content */}
         <main className="flex-1 min-w-0 p-4 md:p-6 overflow-y-auto">
           {errorStep && (
-            <div className="mb-4 flex items-center justify-between px-4 py-3 bg-[#C0392B]/8 border border-[#C0392B]/20 rounded-xl text-sm text-[#C0392B]">
-              <span>Step {errorStep} failed. Partial data shown below.</span>
-              <button onClick={() => retryStep(errorStep)} className="flex items-center gap-1.5 font-medium hover:underline">
-                <RefreshCw size={12} /> Retry Step {errorStep}
-              </button>
+            <div className="mb-4 px-4 py-3 bg-[#C0392B]/8 border border-[#C0392B]/20 rounded-xl">
+              <div className="flex items-center justify-between text-sm text-[#C0392B]">
+                <span>Step {errorStep} failed. Partial data shown below.</span>
+                <div className="flex items-center gap-3">
+                  {errorStep === 1 && (
+                    <button
+                      onClick={() => setShowManualForm(v => !v)}
+                      className="flex items-center gap-1.5 font-medium text-[#1C3B2E] hover:underline"
+                    >
+                      ✏️ Enter details manually
+                    </button>
+                  )}
+                  <button onClick={() => retryStep(errorStep)} className="flex items-center gap-1.5 font-medium hover:underline">
+                    <RefreshCw size={12} /> Retry Step {errorStep}
+                  </button>
+                </div>
+              </div>
             </div>
           )}
-          {display ? renderContent() : (
-            <div className="flex items-center justify-center py-20">
-              <p className="text-sm text-[#4A5E52]">No data available yet.</p>
+
+          {/* Manual company form — shown when step 1 fails */}
+          {showManualForm && errorStep === 1 && (
+            <div className="mb-6">
+              <ManualCompanyForm
+                companyName={companyName}
+                onSubmit={handleManualSubmit}
+                loading={manualSubmitting}
+              />
             </div>
+          )}
+
+          {display ? renderContent() : (
+            !showManualForm ? (
+              <div className="flex flex-col items-center justify-center py-20 text-center gap-3">
+                <p className="text-sm text-[#4A5E52]">No data available yet.</p>
+                {errorStep === 1 && (
+                  <button
+                    onClick={() => setShowManualForm(true)}
+                    className="flex items-center gap-2 px-4 py-2 bg-[#1C3B2E] text-white text-sm rounded-xl hover:bg-[#2E6B4F] transition-colors"
+                  >
+                    ✏️ Enter company details manually
+                  </button>
+                )}
+              </div>
+            ) : null
           )}
         </main>
       </div>
