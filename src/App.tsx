@@ -8,6 +8,8 @@ import { SignUp } from './pages/SignUp';
 import { AnalysisDashboard } from './pages/AnalysisDashboard';
 import { History } from './pages/History';
 import { Admin } from './pages/Admin';
+import { Profile } from './pages/Profile';
+import { OrgChartBuilder } from './pages/OrgChartBuilder';
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { staleTime: 5 * 60_000, retry: 1 } },
@@ -31,6 +33,8 @@ export default function App() {
             <Route path="/analysis/:companySlug" element={<ProtectedRoute><AnalysisDashboard /></ProtectedRoute>} />
             <Route path="/history" element={<ProtectedRoute><History /></ProtectedRoute>} />
             <Route path="/admin" element={<ProtectedRoute><AdminRoute><Admin /></AdminRoute></ProtectedRoute>} />
+            <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
+            <Route path="/org-chart-builder" element={<ProtectedRoute><OrgChartBuilder /></ProtectedRoute>} />
           </Routes>
         </BrowserRouter>
       </AuthProvider>

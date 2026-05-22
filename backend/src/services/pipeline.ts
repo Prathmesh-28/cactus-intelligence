@@ -1,6 +1,7 @@
 import { query, queryOne } from '../db/client';
 import { callAI, extractJSON } from './aiProvider';
-import { fetchOrgData, formatLushaContext } from './lusha';
+import { getCompanyByDomain, extractDomain, enrichPerson, batchEnrich, formatLushaContext } from './lusha';
+import type { EnrichedPerson } from './lusha';
 import type { DbAnalysis } from '../types';
 
 type PipelineAction = 'profile' | 'competitors' | 'orgcharts' | 'talent' | 'signals';
@@ -180,28 +181,56 @@ Return ONLY this exact JSON:
 export async function runOrgChartsStep(analysisId: string, companyName: string): Promise<void> {
   const settings = await getSettings();
   const lushaEnabled = settings['lusha_enabled'] !== false;
-  const seniorityLevels = (settings['lusha_seniority_levels'] as string[]) ?? ['c_level', 'vp', 'director'];
 
-  const analysis = await queryOne<DbAnalysis>('SELECT competitors FROM analyses WHERE id = $1', [analysisId]);
+  const analysis = await queryOne<DbAnalysis>('SELECT competitors, company_profile FROM analyses WHERE id = $1', [analysisId]);
   const competitors = ((analysis?.competitors as Record<string, unknown>)?.competitors as Array<{ name: string }>) ?? [];
+  const profile = (analysis?.company_profile as Record<string, unknown>) ?? {};
   const allCompanies = [companyName, ...competitors.map(c => c.name)];
   const today = new Date().toISOString().split('T')[0];
   const orgCharts: Record<string, unknown> = {};
+
+  // Get the domain for the target company from its profile
+  const linkedinMatch = profile.linkedinMatch as { url?: string } | undefined;
+  const targetWebsite = String((profile.website as string | undefined) ?? linkedinMatch?.url ?? '');
+  const targetDomain = extractDomain(targetWebsite);
 
   for (const company of allCompanies) {
     let employeeCount = 'Unknown';
     try {
       let lushaContext = '';
 
-      if (lushaEnabled) {
-        const { people, company: companyData } = await fetchOrgData(company, seniorityLevels);
-        lushaContext = formatLushaContext(people, companyData);
-        employeeCount = String(companyData?.employeeCount ?? companyData?.employeeRange ?? 'Unknown');
+      // Phase 1 + 2: Enrich company data and known executives from Lusha (target company only, to save credits)
+      if (lushaEnabled && company === companyName && targetDomain) {
+        const [companyData] = await Promise.all([getCompanyByDomain(targetDomain)]);
+        if (companyData?.companySize) {
+          employeeCount = `${companyData.companySize[0]}–${companyData.companySize[1]}`;
+        }
+
+        // Phase 2: enrich CEO + any other named executives from the company profile
+        const enrichedPeople: EnrichedPerson[] = [];
+        const knownNames: Array<{ firstName: string; lastName: string }> = [];
+
+        const ceoName = String((profile.ceo as string | undefined) ?? '').trim();
+        if (ceoName && ceoName !== 'Unknown') {
+          const parts = ceoName.split(/\s+/);
+          const firstName = parts[0];
+          const lastName = parts.slice(1).join(' ');
+          if (firstName && lastName) knownNames.push({ firstName, lastName });
+        }
+
+        if (knownNames.length > 0) {
+          const enriched = await batchEnrich(knownNames, targetDomain, knownNames.length);
+          enrichedPeople.push(...enriched.values());
+        }
+
+        if (enrichedPeople.length > 0 || companyData) {
+          lushaContext = formatLushaContext(enrichedPeople, companyData ?? null);
+        }
       }
 
       const lushaSection = lushaContext
         ? `\n\nVERIFIED DATA FROM LUSHA — mark every person in this list as confidence "confirmed":\n${lushaContext}\n`
-        : '\n\n(No Lusha data available — infer from LinkedIn, web search, job boards. Mark as "inferred" or "estimated".)\n';
+        : '\n\n(No Lusha data — infer executives from LinkedIn company page, company website, press releases, job postings. Mark all as "inferred" or "estimated".)\n';
 
       const text = await callAI(
         `You are a VC Operating Partner building institutional-grade org intelligence — the kind used in McKinsey org audits and Sequoia operating reviews.

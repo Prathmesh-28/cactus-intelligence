@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Search, BarChart2, Users, TrendingUp } from 'lucide-react';
+import { useNavigate, Link } from 'react-router-dom';
+import { Search, BarChart2, Users, TrendingUp, PenLine, Zap, Network } from 'lucide-react';
 import { CactusLogo } from '../components/CactusLogo';
 import { useAuth } from '../context/AuthContext';
 
@@ -13,19 +13,20 @@ const QUOTES = [
 
 export function Landing() {
   const [query, setQuery] = useState('');
+  const [mode, setMode] = useState<'ai' | 'manual'>('ai');
   const navigate = useNavigate();
   const { user } = useAuth();
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!query.trim()) return;
-    const slug = query.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-');
-    if (user) {
-      navigate(`/analysis/${slug}`, { state: { companyName: query.trim() } });
-    } else {
-      navigate('/login', { state: { redirect: `/analysis/${slug}`, companyName: query.trim() } });
-    }
+  const go = (company: string, manual = mode === 'manual') => {
+    if (!company.trim()) return;
+    const slug = company.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-');
+    const dest = `/analysis/${slug}`;
+    const state = { companyName: company.trim(), manual };
+    if (user) navigate(dest, { state });
+    else navigate('/login', { state: { redirect: dest, ...state } });
   };
+
+  const handleSubmit = (e: React.FormEvent) => { e.preventDefault(); go(query); };
 
   return (
     <div className="min-h-screen flex flex-col" style={{ background: '#F8F6F1' }}>
@@ -81,6 +82,30 @@ export function Landing() {
             Enter any company. Instantly map their competitive landscape, leadership structure, and talent signals.
           </p>
 
+          {/* Mode toggle */}
+          <div className="flex items-center gap-1 p-1 bg-[#1C3B2E]/8 border border-[#1C3B2E]/12 rounded-xl mb-4">
+            <button
+              onClick={() => setMode('ai')}
+              className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                mode === 'ai'
+                  ? 'bg-[#1C3B2E] text-white shadow-sm'
+                  : 'text-[#4A5E52] hover:text-[#1C3B2E]'
+              }`}
+            >
+              <Zap size={13} /> AI Analysis
+            </button>
+            <button
+              onClick={() => setMode('manual')}
+              className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                mode === 'manual'
+                  ? 'bg-[#1C3B2E] text-white shadow-sm'
+                  : 'text-[#4A5E52] hover:text-[#1C3B2E]'
+              }`}
+            >
+              <PenLine size={13} /> Enter Manually
+            </button>
+          </div>
+
           {/* Search form */}
           <form onSubmit={handleSubmit} className="w-full max-w-2xl">
             <div className="flex gap-3 bg-white rounded-xl border border-[#E8EDE9] shadow-lg shadow-[#1C3B2E]/8 p-2">
@@ -90,7 +115,7 @@ export function Landing() {
                   type="text"
                   value={query}
                   onChange={e => setQuery(e.target.value)}
-                  placeholder="Enter a company name (e.g. Kapture CX, Intangles, Bellatrix Aerospace)..."
+                  placeholder={mode === 'manual' ? 'Enter company name to fill details manually…' : 'Enter a company name (e.g. Kapture CX, Intangles)…'}
                   className="flex-1 bg-transparent text-[#0F1A14] placeholder-[#9BB0A1] text-sm outline-none py-2"
                   style={{ fontFamily: '"DM Sans", system-ui, sans-serif' }}
                 />
@@ -100,9 +125,14 @@ export function Landing() {
                 disabled={!query.trim()}
                 className="shrink-0 px-6 py-2.5 bg-[#3D9970] hover:bg-[#2E7D5A] disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-semibold rounded-lg transition-colors"
               >
-                Analyse
+                {mode === 'manual' ? 'Open Form' : 'Analyse'}
               </button>
             </div>
+            {mode === 'manual' && (
+              <p className="mt-2 text-xs text-[#9BB0A1] text-center">
+                You'll fill in LinkedIn URL, sector, funding, team details — no AI needed.
+              </p>
+            )}
           </form>
 
           {/* Example companies */}
@@ -111,7 +141,7 @@ export function Landing() {
             {EXAMPLE_COMPANIES.map(c => (
               <button
                 key={c}
-                onClick={() => setQuery(c)}
+                onClick={() => go(c)}
                 className="text-xs px-2.5 py-1 rounded-full border border-[#D4E0D7] bg-white text-[#2E6B4F] hover:border-[#2E6B4F] hover:bg-[#F0F7F2] transition-colors"
               >
                 {c}
@@ -119,7 +149,7 @@ export function Landing() {
             ))}
           </div>
 
-          {/* Feature pills */}
+          {/* Feature pills + LinkedIn shortcut */}
           <div className="mt-12 flex flex-wrap gap-3 justify-center">
             {[
               { icon: <Users size={14} />, label: 'Org Chart Mapping' },
@@ -134,6 +164,15 @@ export function Landing() {
                 {f.label}
               </div>
             ))}
+            {user && (
+              <Link
+                to="/org-chart-builder"
+                className="flex items-center gap-2 px-4 py-2 bg-[#1C3B2E] border border-[#1C3B2E] rounded-full text-sm text-white shadow-sm hover:bg-[#2E6B4F] transition-colors"
+              >
+                <Network size={14} />
+                Build Org Chart from LinkedIn
+              </Link>
+            )}
           </div>
         </div>
       </main>

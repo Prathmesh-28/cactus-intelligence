@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Building2, Globe, Link2, Users, TrendingUp, DollarSign, MapPin, User, ChevronRight } from 'lucide-react';
+import { Building2, Globe, Link2, Users, TrendingUp, DollarSign, MapPin, User, ChevronRight, Layers, Target } from 'lucide-react';
 
 export interface ManualCompanyData {
   name: string;
@@ -41,18 +41,18 @@ interface ManualCompanyFormProps {
 }
 
 const FUNDING_STAGES = ['Pre-seed', 'Seed', 'Series A', 'Series B', 'Series C', 'Series D+', 'Public', 'Unknown'];
-const EMPLOYEE_RANGES = ['1-10', '10-50', '50-200', '200-500', '500-1000', '1000-5000', '5000+'];
+const EMPLOYEE_RANGES = ['1–10', '10–50', '50–200', '200–500', '500–1000', '1000–5000', '5000+'];
 
 export function ManualCompanyForm({ companyName, onSubmit, loading }: ManualCompanyFormProps) {
   const [form, setForm] = useState({
     name: companyName,
-    website: '',
     linkedinUrl: '',
+    website: '',
     sector: '',
     subSector: '',
     hq: '',
     founded: '',
-    employeeCount: '50-200',
+    employeeCount: '50–200',
     fundingStage: 'Series A',
     totalRaised: '',
     ceo: '',
@@ -64,17 +64,19 @@ export function ManualCompanyForm({ companyName, onSubmit, loading }: ManualComp
     boardAndInvestors: '',
     competitiveAdvantage: '',
     founderBackground: '',
+    targetCustomers: '',
+    integrations: '',
   });
 
-  const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) =>
-    setForm(prev => ({ ...prev, [k]: e.target.value }));
+  const set = (k: keyof typeof form) => (
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
+  ) => setForm(prev => ({ ...prev, [k]: e.target.value }));
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-
     const csv = (s: string) => s.split(',').map(x => x.trim()).filter(Boolean);
 
-    const data: ManualCompanyData = {
+    onSubmit({
       name: form.name || companyName,
       normalizedName: form.name || companyName,
       legalName: form.name || companyName,
@@ -98,177 +100,203 @@ export function ManualCompanyForm({ companyName, onSubmit, loading }: ManualComp
       },
       businessModel: form.businessModel,
       revenueModel: form.revenueModel,
-      keyCustomers: [],
+      keyCustomers: csv(form.targetCustomers),
       geographicPresence: csv(form.markets),
-      techStack: [],
+      techStack: csv(form.integrations),
       founderBackground: form.founderBackground,
       boardAndInvestors: csv(form.boardAndInvestors),
       competitiveAdvantage: form.competitiveAdvantage,
       recentNews: [],
-    };
-
-    onSubmit(data);
+    });
   };
 
-  const inputCls = 'w-full px-3 py-2 text-sm border border-[#E8EDE9] rounded-lg bg-white text-[#0F1A14] placeholder-[#9BB0A1] focus:outline-none focus:border-[#2E6B4F] focus:ring-1 focus:ring-[#2E6B4F]/20 transition-colors';
-  const labelCls = 'block text-xs font-medium text-[#4A5E52] mb-1.5';
+  const inp = 'w-full px-3 py-2 text-sm border border-[#E8EDE9] rounded-lg bg-white text-[#0F1A14] placeholder-[#9BB0A1] focus:outline-none focus:border-[#2E6B4F] focus:ring-1 focus:ring-[#2E6B4F]/20 transition-colors';
+  const lbl = 'block text-xs font-medium text-[#4A5E52] mb-1.5';
 
   return (
     <div className="bg-white border border-[#E8EDE9] rounded-2xl shadow-sm overflow-hidden">
-      {/* Header */}
-      <div className="bg-[#1C3B2E] px-6 py-4">
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 bg-white/15 rounded-lg flex items-center justify-center">
-            <Building2 size={16} className="text-white" />
-          </div>
-          <div>
-            <h3 className="text-white font-semibold text-sm">Manual Company Setup</h3>
-            <p className="text-[#A8C4B0] text-xs mt-0.5">
-              Step 1 couldn't auto-identify the company. Enter key details and the analysis will continue from Step 2.
-            </p>
-          </div>
+      <div className="bg-[#1C3B2E] px-5 py-4 flex items-center gap-3">
+        <div className="w-8 h-8 bg-white/15 rounded-lg flex items-center justify-center shrink-0">
+          <Building2 size={16} className="text-white" />
+        </div>
+        <div>
+          <h3 className="text-white font-semibold text-sm">Enter Company Details</h3>
+          <p className="text-[#A8C4B0] text-xs mt-0.5">Fill what you know — only Name, Sector and Description are required.</p>
         </div>
       </div>
 
-      <form onSubmit={handleSubmit} className="p-6 space-y-6">
-        {/* Identity */}
-        <section>
-          <h4 className="text-xs font-semibold uppercase tracking-wide text-[#9BB0A1] mb-4 flex items-center gap-2">
-            <Building2 size={12} /> Company Identity
-          </h4>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className={labelCls}>Company Name *</label>
-              <input className={inputCls} value={form.name} onChange={set('name')} required placeholder="e.g. Kapture CX" />
-            </div>
-            <div>
-              <label className={labelCls}>Sector *</label>
-              <input className={inputCls} value={form.sector} onChange={set('sector')} required placeholder="e.g. Customer Experience SaaS" />
-            </div>
-            <div>
-              <label className={labelCls}>Sub-sector</label>
-              <input className={inputCls} value={form.subSector} onChange={set('subSector')} placeholder="e.g. CRM & Helpdesk" />
-            </div>
-            <div>
-              <label className={labelCls}>HQ Location</label>
-              <div className="relative">
-                <MapPin size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#9BB0A1]" />
-                <input className={inputCls + ' pl-8'} value={form.hq} onChange={set('hq')} placeholder="e.g. Bangalore, India" />
-              </div>
-            </div>
-            <div>
-              <label className={labelCls}>Founded Year</label>
-              <input className={inputCls} value={form.founded} onChange={set('founded')} placeholder="e.g. 2014" type="number" min="1900" max="2030" />
-            </div>
-            <div>
-              <label className={labelCls}>CEO / Founder</label>
-              <div className="relative">
-                <User size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#9BB0A1]" />
-                <input className={inputCls + ' pl-8'} value={form.ceo} onChange={set('ceo')} placeholder="e.g. Sheshgiri Kamath" />
-              </div>
-            </div>
-          </div>
-        </section>
+      <form onSubmit={handleSubmit} className="p-5 space-y-5">
 
-        {/* Links */}
-        <section>
-          <h4 className="text-xs font-semibold uppercase tracking-wide text-[#9BB0A1] mb-4 flex items-center gap-2">
-            <Globe size={12} /> Online Presence
+        {/* ── LinkedIn + Website — most important, first ── */}
+        <section className="bg-[#F0F7F2] border border-[#2E6B4F]/15 rounded-xl p-4 space-y-3">
+          <h4 className="text-xs font-semibold uppercase tracking-wide text-[#2E6B4F] flex items-center gap-1.5">
+            <Link2 size={11} /> Online Presence
           </h4>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label className={labelCls}>Website URL</label>
-              <div className="relative">
-                <Globe size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#9BB0A1]" />
-                <input className={inputCls + ' pl-8'} value={form.website} onChange={set('website')} placeholder="https://kapturecrm.com" type="url" />
-              </div>
-            </div>
-            <div>
-              <label className={labelCls}>LinkedIn Company URL</label>
+              <label className={lbl}>LinkedIn Company Page URL</label>
               <div className="relative">
                 <Link2 size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#9BB0A1]" />
-                <input className={inputCls + ' pl-8'} value={form.linkedinUrl} onChange={set('linkedinUrl')} placeholder="https://linkedin.com/company/kapture-crm" type="url" />
+                <input
+                  className={inp + ' pl-8'}
+                  value={form.linkedinUrl}
+                  onChange={set('linkedinUrl')}
+                  placeholder="https://linkedin.com/company/..."
+                  type="url"
+                />
+              </div>
+            </div>
+            <div>
+              <label className={lbl}>Website</label>
+              <div className="relative">
+                <Globe size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#9BB0A1]" />
+                <input
+                  className={inp + ' pl-8'}
+                  value={form.website}
+                  onChange={set('website')}
+                  placeholder="https://company.com"
+                  type="url"
+                />
               </div>
             </div>
           </div>
         </section>
 
-        {/* Scale */}
+        {/* ── Identity ── */}
         <section>
-          <h4 className="text-xs font-semibold uppercase tracking-wide text-[#9BB0A1] mb-4 flex items-center gap-2">
-            <TrendingUp size={12} /> Scale & Funding
+          <h4 className="text-xs font-semibold uppercase tracking-wide text-[#9BB0A1] mb-3 flex items-center gap-1.5">
+            <Building2 size={11} /> Identity
           </h4>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label className={labelCls}>Employee Count</label>
+              <label className={lbl}>Company Name *</label>
+              <input className={inp} value={form.name} onChange={set('name')} required placeholder="e.g. Kapture CX" />
+            </div>
+            <div>
+              <label className={lbl}>Sector *</label>
+              <input className={inp} value={form.sector} onChange={set('sector')} required placeholder="e.g. Customer Experience SaaS" />
+            </div>
+            <div>
+              <label className={lbl}>Sub-sector</label>
+              <input className={inp} value={form.subSector} onChange={set('subSector')} placeholder="e.g. CRM & Helpdesk" />
+            </div>
+            <div>
+              <label className={lbl}>HQ Location</label>
+              <div className="relative">
+                <MapPin size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#9BB0A1]" />
+                <input className={inp + ' pl-8'} value={form.hq} onChange={set('hq')} placeholder="e.g. Bangalore, India" />
+              </div>
+            </div>
+            <div>
+              <label className={lbl}>CEO / Founder</label>
+              <div className="relative">
+                <User size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#9BB0A1]" />
+                <input className={inp + ' pl-8'} value={form.ceo} onChange={set('ceo')} placeholder="Full name" />
+              </div>
+            </div>
+            <div>
+              <label className={lbl}>Founded Year</label>
+              <input className={inp} value={form.founded} onChange={set('founded')} placeholder="e.g. 2014" type="number" min="1900" max="2030" />
+            </div>
+          </div>
+        </section>
+
+        {/* ── Scale & Funding ── */}
+        <section>
+          <h4 className="text-xs font-semibold uppercase tracking-wide text-[#9BB0A1] mb-3 flex items-center gap-1.5">
+            <TrendingUp size={11} /> Scale & Funding
+          </h4>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div>
+              <label className={lbl}>Employees</label>
               <div className="relative">
                 <Users size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#9BB0A1] pointer-events-none" />
-                <select className={inputCls + ' pl-8 appearance-none'} value={form.employeeCount} onChange={set('employeeCount')}>
-                  {EMPLOYEE_RANGES.map(r => <option key={r} value={r}>{r} employees</option>)}
+                <select className={inp + ' pl-8 appearance-none'} value={form.employeeCount} onChange={set('employeeCount')}>
+                  {EMPLOYEE_RANGES.map(r => <option key={r} value={r}>{r}</option>)}
                 </select>
               </div>
             </div>
             <div>
-              <label className={labelCls}>Funding Stage</label>
-              <select className={inputCls} value={form.fundingStage} onChange={set('fundingStage')}>
+              <label className={lbl}>Funding Stage</label>
+              <select className={inp} value={form.fundingStage} onChange={set('fundingStage')}>
                 {FUNDING_STAGES.map(s => <option key={s} value={s}>{s}</option>)}
               </select>
             </div>
             <div>
-              <label className={labelCls}>Total Raised</label>
+              <label className={lbl}>Total Raised</label>
               <div className="relative">
                 <DollarSign size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#9BB0A1]" />
-                <input className={inputCls + ' pl-8'} value={form.totalRaised} onChange={set('totalRaised')} placeholder="e.g. $70M" />
+                <input className={inp + ' pl-8'} value={form.totalRaised} onChange={set('totalRaised')} placeholder="e.g. $70M" />
               </div>
             </div>
           </div>
         </section>
 
-        {/* Description */}
+        {/* ── Product & Market ── */}
         <section>
-          <h4 className="text-xs font-semibold uppercase tracking-wide text-[#9BB0A1] mb-4">Description</h4>
-          <div className="space-y-4">
+          <h4 className="text-xs font-semibold uppercase tracking-wide text-[#9BB0A1] mb-3 flex items-center gap-1.5">
+            <Layers size={11} /> Product & Market
+          </h4>
+          <div className="space-y-3">
             <div>
-              <label className={labelCls}>Company Description *</label>
+              <label className={lbl}>Company Description *</label>
               <textarea
-                className={inputCls + ' resize-none'}
-                rows={3}
+                className={inp + ' resize-none'}
+                rows={2}
                 value={form.description}
                 onChange={set('description')}
                 required
-                placeholder="2–3 sentences: what they do, who they serve, and their key differentiation."
+                placeholder="What they do, who they serve, key differentiation."
               />
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
-                <label className={labelCls}>Key Products <span className="font-normal text-[#9BB0A1]">(comma-separated)</span></label>
-                <input className={inputCls} value={form.keyProducts} onChange={set('keyProducts')} placeholder="e.g. CRM, Helpdesk, Chatbot" />
-              </div>
-              <div>
-                <label className={labelCls}>Markets <span className="font-normal text-[#9BB0A1]">(comma-separated)</span></label>
-                <input className={inputCls} value={form.markets} onChange={set('markets')} placeholder="e.g. India, Southeast Asia, Middle East" />
+                <label className={lbl}>Key Products <span className="font-normal text-[#9BB0A1]">(comma-sep)</span></label>
+                <input className={inp} value={form.keyProducts} onChange={set('keyProducts')} placeholder="e.g. CRM, Helpdesk, Analytics" />
               </div>
               <div>
-                <label className={labelCls}>Business Model</label>
-                <input className={inputCls} value={form.businessModel} onChange={set('businessModel')} placeholder="e.g. B2B SaaS" />
+                <label className={lbl}>Markets <span className="font-normal text-[#9BB0A1]">(comma-sep)</span></label>
+                <input className={inp} value={form.markets} onChange={set('markets')} placeholder="e.g. India, SE Asia, Middle East" />
               </div>
               <div>
-                <label className={labelCls}>Investors / Board <span className="font-normal text-[#9BB0A1]">(comma-separated)</span></label>
-                <input className={inputCls} value={form.boardAndInvestors} onChange={set('boardAndInvestors')} placeholder="e.g. Sequoia, Tiger Global" />
+                <label className={lbl}>Business Model</label>
+                <input className={inp} value={form.businessModel} onChange={set('businessModel')} placeholder="e.g. B2B SaaS" />
               </div>
-              <div className="md:col-span-2">
-                <label className={labelCls}>Competitive Advantage</label>
-                <input className={inputCls} value={form.competitiveAdvantage} onChange={set('competitiveAdvantage')} placeholder="e.g. Deep SMB penetration with 1,000+ enterprise clients across India" />
+              <div>
+                <label className={lbl}>Revenue Model</label>
+                <input className={inp} value={form.revenueModel} onChange={set('revenueModel')} placeholder="e.g. Annual subscription + services" />
               </div>
+            </div>
+          </div>
+        </section>
+
+        {/* ── Customers & Integrations ── */}
+        <section>
+          <h4 className="text-xs font-semibold uppercase tracking-wide text-[#9BB0A1] mb-3 flex items-center gap-1.5">
+            <Target size={11} /> Customers & Integrations
+          </h4>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className={lbl}>Target Customers / Key Accounts <span className="font-normal text-[#9BB0A1]">(comma-sep)</span></label>
+              <input className={inp} value={form.targetCustomers} onChange={set('targetCustomers')} placeholder="e.g. Swiggy, OYO, large enterprises" />
+            </div>
+            <div>
+              <label className={lbl}>Integrations / Tech Stack <span className="font-normal text-[#9BB0A1]">(comma-sep)</span></label>
+              <input className={inp} value={form.integrations} onChange={set('integrations')} placeholder="e.g. Salesforce, Slack, AWS, Jira" />
+            </div>
+            <div>
+              <label className={lbl}>Investors / Board <span className="font-normal text-[#9BB0A1]">(comma-sep)</span></label>
+              <input className={inp} value={form.boardAndInvestors} onChange={set('boardAndInvestors')} placeholder="e.g. Sequoia, Tiger Global" />
+            </div>
+            <div>
+              <label className={lbl}>Competitive Advantage</label>
+              <input className={inp} value={form.competitiveAdvantage} onChange={set('competitiveAdvantage')} placeholder="e.g. Deep SMB penetration, 1,000+ clients" />
             </div>
           </div>
         </section>
 
         {/* Submit */}
-        <div className="flex items-center justify-between pt-2 border-t border-[#E8EDE9]">
-          <p className="text-xs text-[#9BB0A1]">
-            Only <span className="font-medium text-[#4A5E52]">Company Name, Sector,</span> and <span className="font-medium text-[#4A5E52]">Description</span> are required. More data = better analysis.
-          </p>
+        <div className="flex items-center justify-end pt-2 border-t border-[#E8EDE9]">
           <button
             type="submit"
             disabled={loading}

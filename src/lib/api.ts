@@ -160,6 +160,15 @@ export const users = {
   deactivate: (id: string) => del(`/api/users/${id}`),
 };
 
+// ── Org-from-LinkedIn ─────────────────────────────────────────
+export interface OrgCompanyInput { name: string; linkedinUrl: string; website?: string; }
+export const orgFromLinkedin = {
+  build: (target: OrgCompanyInput, competitors: OrgCompanyInput[]) =>
+    request<{ orgCharts: Record<string, unknown>; companyNames: string[] }>(
+      'POST', '/api/org-from-linkedin', { target, competitors }, PIPELINE_TIMEOUT_MS
+    ),
+};
+
 // ── Settings (admin) ──────────────────────────────────────────
 export const settings = {
   getAll: () => get<{ settings: Record<string, unknown>; meta: Record<string, unknown> }>('/api/settings'),

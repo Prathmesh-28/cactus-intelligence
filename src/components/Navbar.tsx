@@ -1,5 +1,5 @@
 import { Link, useNavigate } from 'react-router-dom';
-import { LogOut, History, Search, Shield } from 'lucide-react';
+import { LogOut, History, Search, Shield, UserCircle } from 'lucide-react';
 import { CactusLogo } from './CactusLogo';
 import { useAuth } from '../context/AuthContext';
 
@@ -44,7 +44,7 @@ export function Navbar({ breadcrumb }: NavbarProps) {
               </Link>
             )}
             <div className="w-px h-4 bg-[#2E6B4F] mx-1" />
-            <div className="flex items-center gap-1.5 px-2 py-1.5 text-sm text-[#A8C4B0]">
+            <Link to="/profile" className="flex items-center gap-1.5 px-2 py-1.5 text-sm text-[#A8C4B0] hover:text-white hover:bg-white/10 rounded transition-colors">
               <div className="w-6 h-6 rounded-full bg-[#2E6B4F] flex items-center justify-center text-xs font-bold text-white">
                 {(user.name ?? user.email)[0].toUpperCase()}
               </div>
@@ -52,7 +52,10 @@ export function Navbar({ breadcrumb }: NavbarProps) {
               {user.role === 'admin' && (
                 <span className="text-[10px] px-1.5 py-0.5 bg-[#3D9970]/20 text-[#3D9970] rounded-full font-medium">Admin</span>
               )}
-            </div>
+            </Link>
+            <Link to="/profile" className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-[#A8C4B0] hover:text-white hover:bg-white/10 rounded transition-colors sm:hidden" title="Profile">
+              <UserCircle size={14} />
+            </Link>
             <button
               onClick={handleSignOut}
               className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-[#A8C4B0] hover:text-white hover:bg-white/10 rounded transition-colors"

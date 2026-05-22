@@ -3,9 +3,9 @@ import { analyses, pipeline, type ApiAnalysis, type PipelineAction } from '../li
 
 const STEPS: PipelineAction[] = ['profile', 'competitors', 'orgcharts', 'talent', 'signals'];
 
-export function useAnalysis(_companySlug: string, companyName: string) {
+export function useAnalysis(_companySlug: string, companyName: string, skip = false) {
   const [analysis, setAnalysis] = useState<ApiAnalysis | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!skip);
   const [currentStep, setCurrentStep] = useState(0);
   const [errorStep, setErrorStep] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -56,7 +56,7 @@ export function useAnalysis(_companySlug: string, companyName: string) {
     }
   }, [companyName, runPipeline]);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => { if (!skip) load(); else setLoading(false); }, [load, skip]);
 
   const retryStep = useCallback(async (stepNumber: number) => {
     if (!analysis) return;
