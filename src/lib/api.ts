@@ -20,20 +20,39 @@ class ApiError extends Error {
   }
 }
 
+// Pipeline steps call Claude with web_search — allow up to 3 min per step
+const PIPELINE_TIMEOUT_MS = 180_000;
+const DEFAULT_TIMEOUT_MS  =  15_000;
+
 async function request<T>(
   method: string,
   path: string,
-  body?: unknown
+  body?: unknown,
+  timeoutMs = DEFAULT_TIMEOUT_MS,
 ): Promise<T> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+
   const token = getToken();
-  const res = await fetch(`${BASE_URL}${path}`, {
-    method,
-    headers: {
-      'Content-Type': 'application/json',
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    },
-    body: body !== undefined ? JSON.stringify(body) : undefined,
-  });
+  let res: Response;
+  try {
+    res = await fetch(`${BASE_URL}${path}`, {
+      method,
+      signal: controller.signal,
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: body !== undefined ? JSON.stringify(body) : undefined,
+    });
+  } catch (err) {
+    clearTimeout(timer);
+    if ((err as Error).name === 'AbortError') {
+      throw new ApiError(0, 'Request timed out — check that the server is reachable');
+    }
+    throw new ApiError(0, (err as Error).message ?? 'Network error');
+  }
+  clearTimeout(timer);
 
   const data = await res.json().catch(() => ({ error: res.statusText })) as { error?: string } & T;
 
@@ -43,11 +62,11 @@ async function request<T>(
   return data;
 }
 
-const get  = <T>(path: string)              => request<T>('GET',    path);
-const post = <T>(path: string, body: unknown) => request<T>('POST',   path, body);
-const put  = <T>(path: string, body: unknown) => request<T>('PUT',    path, body);
-const patch = <T>(path: string, body: unknown) => request<T>('PATCH', path, body);
-const del  = <T>(path: string)              => request<T>('DELETE', path);
+const get   = <T>(path: string)               => request<T>('GET',    path);
+const post  = <T>(path: string, body: unknown) => request<T>('POST',   path, body);
+const put   = <T>(path: string, body: unknown) => request<T>('PUT',    path, body);
+const patch = <T>(path: string, body: unknown) => request<T>('PATCH',  path, body);
+const del   = <T>(path: string)               => request<T>('DELETE', path);
 
 // ── Auth ──────────────────────────────────────────────────────
 export const auth = {
@@ -115,9 +134,9 @@ export const analyses = {
 // ── Pipeline ──────────────────────────────────────────────────
 export const pipeline = {
   runStep: (analysisId: string, action: PipelineAction, companyName: string) =>
-    post<{ success: boolean; action: string; analysis: ApiAnalysis }>('/api/pipeline/step', {
+    request<{ success: boolean; action: string; analysis: ApiAnalysis }>('POST', '/api/pipeline/step', {
       analysisId, action, companyName,
-    }),
+    }, PIPELINE_TIMEOUT_MS),
 
   getStatus: (analysisId: string) =>
     get<{ status: string; step: number; error: string | null }>(`/api/pipeline/status/${analysisId}`),

@@ -25,9 +25,19 @@ const DEFAULT_SETTINGS = [
     description: 'Firm website URL',
   },
   {
+    key: 'ai_provider',
+    value: '"anthropic"',
+    description: 'AI provider for the pipeline: anthropic | openai | google',
+  },
+  {
+    key: 'ai_model',
+    value: '"claude-sonnet-4-6"',
+    description: 'Model ID for the selected provider. Must match the provider\'s model catalog.',
+  },
+  {
     key: 'anthropic_model',
-    value: '"claude-sonnet-4-20250514"',
-    description: 'Claude model used for AI pipeline. Change to upgrade/downgrade.',
+    value: '"claude-sonnet-4-6"',
+    description: '(Legacy) Anthropic model — superseded by ai_provider + ai_model',
   },
   {
     key: 'analysis_cache_hours',

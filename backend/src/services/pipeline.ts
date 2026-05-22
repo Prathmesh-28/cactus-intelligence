@@ -1,5 +1,5 @@
 import { query, queryOne } from '../db/client';
-import { callClaude, extractJSON } from './anthropic';
+import { callAI, extractJSON } from './aiProvider';
 import { fetchOrgData, formatLushaContext } from './lusha';
 import type { DbAnalysis } from '../types';
 
@@ -25,9 +25,8 @@ async function updateAnalysis(id: string, patch: Record<string, unknown>, step: 
 // ── Step 1: Company Profile ───────────────────────────────────
 export async function runProfileStep(analysisId: string, companyName: string): Promise<void> {
   const settings = await getSettings();
-  const model = settings['anthropic_model'] as string;
 
-  const text = await callClaude(
+  const text = await callAI(
     'You are a VC research analyst. Always respond with valid JSON only — no prose outside code fences.',
     `Research the company "${companyName}". Return ONLY valid JSON:
 {
@@ -37,7 +36,7 @@ export async function runProfileStep(analysisId: string, companyName: string): P
   "description":"string","keyProducts":["string"],"markets":["string"],
   "recentNews":[{"headline":"string","date":"string","url":"string"}]
 }`,
-    model
+    settings,
   );
   await updateAnalysis(analysisId, { company_profile: extractJSON(text) }, 1);
 }
@@ -45,17 +44,16 @@ export async function runProfileStep(analysisId: string, companyName: string): P
 // ── Step 2: Competitors ───────────────────────────────────────
 export async function runCompetitorsStep(analysisId: string, companyName: string): Promise<void> {
   const settings = await getSettings();
-  const model = settings['anthropic_model'] as string;
   const maxComp = Number(settings['max_competitors'] ?? 5);
 
   const analysis = await queryOne<DbAnalysis>('SELECT company_profile FROM analyses WHERE id = $1', [analysisId]);
   const sector = (analysis?.company_profile as Record<string, string>)?.sector ?? 'technology';
 
-  const text = await callClaude(
+  const text = await callAI(
     'You are a VC research analyst. Always respond with valid JSON only.',
     `Identify the top ${maxComp} direct competitors of "${companyName}" in the "${sector}" space.
 Return ONLY: {"competitors":[{"rank":1,"name":"string","hq":"string","founded":0,"employees":"string","fundingStage":"string","totalRaised":"string","ceo":"string","differentiator":"string","marketPosition":"string","threatLevel":"high|medium|low"}]}`,
-    model
+    settings,
   );
   await updateAnalysis(analysisId, { competitors: extractJSON(text) }, 2);
 }
@@ -63,7 +61,6 @@ Return ONLY: {"competitors":[{"rank":1,"name":"string","hq":"string","founded":0
 // ── Step 3: Org Charts (Lusha + Claude) ───────────────────────
 export async function runOrgChartsStep(analysisId: string, companyName: string): Promise<void> {
   const settings = await getSettings();
-  const model = settings['anthropic_model'] as string;
   const lushaEnabled = settings['lusha_enabled'] !== false;
   const seniorityLevels = (settings['lusha_seniority_levels'] as string[]) ?? ['c_level', 'vp', 'director'];
 
@@ -88,7 +85,7 @@ export async function runOrgChartsStep(analysisId: string, companyName: string):
         ? `\n\nVERIFIED DATA FROM LUSHA (mark these as confidence "confirmed"):\n${lushaContext}\n`
         : '\n\n(No Lusha data — infer from web search; mark as "inferred" or "estimated".)\n';
 
-      const text = await callClaude(
+      const text = await callAI(
         'You are a VC research analyst. Use Lusha-verified people as "confirmed". Fill gaps via web search, mark as "inferred" or "estimated". Always respond with valid JSON only.',
         `Build the org chart for "${company}".${lushaSection}
 Build a complete org tree (C-Suite + VP/Director level) with correct reporting hierarchy.
@@ -106,7 +103,7 @@ Return ONLY:
   "recentChanges":[{"type":"join","name":"string","title":"string","date":"string"}],
   "openRoles":["string"]
 }`,
-        model
+        settings,
       );
       orgCharts[company] = extractJSON(text);
     } catch {
@@ -124,12 +121,11 @@ Return ONLY:
 // ── Step 4: Talent Intelligence ───────────────────────────────
 export async function runTalentStep(analysisId: string, companyName: string): Promise<void> {
   const settings = await getSettings();
-  const model = settings['anthropic_model'] as string;
   const analysis = await queryOne<DbAnalysis>('SELECT competitors FROM analyses WHERE id = $1', [analysisId]);
   const competitors = ((analysis?.competitors as Record<string, unknown>)?.competitors as Array<{ name: string }>) ?? [];
   const competitorList = competitors.map(c => c.name).join(', ');
 
-  const text = await callClaude(
+  const text = await callAI(
     'You are a VC talent intelligence analyst. Always respond with valid JSON only.',
     `Analyse talent intelligence for "${companyName}" vs competitors: ${competitorList}.
 Return ONLY:
@@ -141,7 +137,7 @@ Return ONLY:
   "poachingRisk":[{"name":"string","title":"string","company":"string","reason":"string"}],
   "hiringRecommendations":[{"role":"string","urgency":"immediate|near-term|strategic","rationale":"string"}]
 }`,
-    model
+    settings,
   );
   await updateAnalysis(analysisId, { talent_insights: extractJSON(text) }, 4);
 }
@@ -149,13 +145,12 @@ Return ONLY:
 // ── Step 5: Investment Signals ────────────────────────────────
 export async function runSignalsStep(analysisId: string, companyName: string): Promise<void> {
   const settings = await getSettings();
-  const model = settings['anthropic_model'] as string;
   const investmentFocus = (settings['investment_focus'] as string) ?? 'India-focused VC';
   const analysis = await queryOne<DbAnalysis>('SELECT competitors FROM analyses WHERE id = $1', [analysisId]);
   const competitors = ((analysis?.competitors as Record<string, unknown>)?.competitors as Array<{ name: string }>) ?? [];
   const competitorList = competitors.map(c => c.name).join(', ');
 
-  const text = await callClaude(
+  const text = await callAI(
     `You are a senior VC analyst (${investmentFocus}). Always respond with valid JSON only.`,
     `Analyse "${companyName}" against competitors: ${competitorList}. Provide GO/HOLD/PASS signal.
 Return ONLY:
@@ -169,7 +164,7 @@ Return ONLY:
   "dueDiligence":[{"item":"string"}],
   "comparableExits":[{"company":"string","exitType":"string","exitValue":"string","year":"string"}]
 }`,
-    model
+    settings,
   );
   await updateAnalysis(analysisId, { investment_signals: extractJSON(text) }, 5);
 

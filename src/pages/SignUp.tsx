@@ -1,7 +1,22 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import emailjs from '@emailjs/browser';
 import { CactusLogo } from '../components/CactusLogo';
 import { useAuth } from '../context/AuthContext';
+
+const EMAILJS_SERVICE  = import.meta.env.VITE_EMAILJS_SERVICE_ID  as string | undefined;
+const EMAILJS_TEMPLATE = import.meta.env.VITE_EMAILJS_TEMPLATE_ID as string | undefined;
+const EMAILJS_KEY      = import.meta.env.VITE_EMAILJS_PUBLIC_KEY  as string | undefined;
+
+async function sendWelcomeEmail(toName: string, toEmail: string) {
+  if (!EMAILJS_SERVICE || !EMAILJS_TEMPLATE || !EMAILJS_KEY) return;
+  await emailjs.send(
+    EMAILJS_SERVICE,
+    EMAILJS_TEMPLATE,
+    { to_name: toName, to_email: toEmail, reply_to: 'noreply@cactuspartners.in' },
+    EMAILJS_KEY,
+  );
+}
 
 export function SignUp() {
   const [name, setName] = useState('');
@@ -19,6 +34,8 @@ export function SignUp() {
     const { error: err } = await signUp(email, name, password);
     setLoading(false);
     if (err) { setError(err); return; }
+    // Fire-and-forget welcome email — don't block navigation on failure
+    sendWelcomeEmail(name, email).catch(() => {});
     navigate('/');
   };
 

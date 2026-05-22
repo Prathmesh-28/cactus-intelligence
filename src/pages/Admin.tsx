@@ -1,8 +1,137 @@
 import { useEffect, useState } from 'react';
-import { Users, Settings, Shield, Plus, Edit2, Trash2, RotateCcw, Check, X, ChevronDown, ChevronRight } from 'lucide-react';
+import { Users, Settings, Shield, Plus, Edit2, Trash2, RotateCcw, Check, X, ChevronDown, ChevronRight, Cpu, Save } from 'lucide-react';
 import { Navbar } from '../components/Navbar';
 import { users as usersApi, settings as settingsApi, type ApiUser } from '../lib/api';
 import { useAuth } from '../context/AuthContext';
+
+// ── AI Provider / Model picker ────────────────────────────────
+type AiProvider = 'anthropic' | 'openai' | 'google';
+
+const PROVIDERS: { id: AiProvider; label: string; color: string }[] = [
+  { id: 'anthropic', label: 'Anthropic (Claude)', color: '#D97706' },
+  { id: 'openai',    label: 'OpenAI (ChatGPT)',   color: '#10A37F' },
+  { id: 'google',    label: 'Google (Gemini)',     color: '#4285F4' },
+];
+
+const MODELS: Record<AiProvider, { id: string; label: string }[]> = {
+  anthropic: [
+    { id: 'claude-sonnet-4-6',        label: 'Claude Sonnet 4.6 (recommended)' },
+    { id: 'claude-opus-4-7',          label: 'Claude Opus 4.7 (most capable)' },
+    { id: 'claude-haiku-4-5-20251001', label: 'Claude Haiku 4.5 (fastest)' },
+    { id: 'claude-sonnet-4-20250514', label: 'Claude Sonnet 4 (legacy)' },
+  ],
+  openai: [
+    { id: 'gpt-4o',      label: 'GPT-4o (recommended)' },
+    { id: 'gpt-4o-mini', label: 'GPT-4o Mini (fast)' },
+    { id: 'gpt-4-turbo', label: 'GPT-4 Turbo' },
+    { id: 'o3-mini',     label: 'o3-mini (reasoning)' },
+    { id: 'o1',          label: 'o1 (advanced reasoning)' },
+  ],
+  google: [
+    { id: 'gemini-2.0-flash',               label: 'Gemini 2.0 Flash (recommended)' },
+    { id: 'gemini-2.0-flash-thinking-exp',  label: 'Gemini 2.0 Flash Thinking' },
+    { id: 'gemini-1.5-pro',                 label: 'Gemini 1.5 Pro' },
+    { id: 'gemini-1.5-flash',               label: 'Gemini 1.5 Flash (fast)' },
+  ],
+};
+
+function AiModelCard({ settingsMap, onSave }: {
+  settingsMap: Record<string, unknown>;
+  onSave: (key: string, val: unknown) => Promise<void>;
+}) {
+  const [provider, setProvider] = useState<AiProvider>(
+    (settingsMap['ai_provider'] as AiProvider) ?? 'anthropic'
+  );
+  const [model, setModel] = useState<string>(
+    (settingsMap['ai_model'] as string) ?? 'claude-sonnet-4-6'
+  );
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+
+  const handleProviderChange = (p: AiProvider) => {
+    setProvider(p);
+    setModel(MODELS[p][0].id);
+    setSaved(false);
+  };
+
+  const handleSave = async () => {
+    setSaving(true);
+    await onSave('ai_provider', provider);
+    await onSave('ai_model', model);
+    setSaving(false);
+    setSaved(true);
+    setTimeout(() => setSaved(false), 2500);
+  };
+
+  const providerInfo = PROVIDERS.find(p => p.id === provider)!;
+
+  return (
+    <div className="bg-white border border-[#E8EDE9] rounded-xl overflow-hidden shadow-sm mb-4">
+      <div className="px-5 py-3 border-b border-[#E8EDE9] bg-[#FAFCFA] flex items-center gap-2">
+        <Cpu size={14} className="text-[#2E6B4F]" />
+        <h3 className="text-xs font-semibold uppercase tracking-wide text-[#4A5E52]">AI Model</h3>
+        <span
+          className="ml-1 text-xs px-2 py-0.5 rounded-full font-medium"
+          style={{ background: providerInfo.color + '18', color: providerInfo.color }}
+        >
+          {providerInfo.label}
+        </span>
+      </div>
+
+      <div className="p-5 space-y-4">
+        {/* Provider selector */}
+        <div>
+          <label className="block text-xs font-medium text-[#4A5E52] mb-2 uppercase tracking-wide">Provider</label>
+          <div className="grid grid-cols-3 gap-2">
+            {PROVIDERS.map(p => (
+              <button
+                key={p.id}
+                onClick={() => handleProviderChange(p.id)}
+                className={`px-3 py-2.5 rounded-lg border text-sm font-medium transition-all ${
+                  provider === p.id
+                    ? 'border-[#1C3B2E] bg-[#1C3B2E] text-white'
+                    : 'border-[#E8EDE9] bg-white text-[#4A5E52] hover:border-[#2E6B4F] hover:text-[#0F1A14]'
+                }`}
+              >
+                {p.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Model selector */}
+        <div>
+          <label className="block text-xs font-medium text-[#4A5E52] mb-2 uppercase tracking-wide">Model</label>
+          <select
+            value={model}
+            onChange={e => { setModel(e.target.value); setSaved(false); }}
+            className="w-full px-3 py-2.5 border border-[#E8EDE9] rounded-lg text-sm bg-[#F8F6F1] text-[#0F1A14] outline-none focus:border-[#2E6B4F] focus:ring-1 focus:ring-[#2E6B4F]"
+          >
+            {MODELS[provider].map(m => (
+              <option key={m.id} value={m.id}>{m.label}</option>
+            ))}
+          </select>
+          <p className="text-xs text-[#9BB0A1] mt-1.5">
+            Make sure the corresponding API key is set in the server's <code className="font-mono bg-[#F0F7F2] px-1 rounded">.env</code> file.
+          </p>
+        </div>
+
+        {/* Save */}
+        <button
+          onClick={handleSave}
+          disabled={saving}
+          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
+            saved
+              ? 'bg-[#27AE60]/10 text-[#27AE60] border border-[#27AE60]/30'
+              : 'bg-[#1C3B2E] text-white hover:bg-[#152C22] disabled:opacity-60'
+          }`}
+        >
+          {saved ? <><Check size={14} /> Saved</> : saving ? <><Save size={14} /> Saving...</> : <><Save size={14} /> Save Model Settings</>}
+        </button>
+      </div>
+    </div>
+  );
+}
 
 type AdminTab = 'users' | 'settings' | 'audit';
 
@@ -353,24 +482,34 @@ export function Admin() {
 
         {/* ── Settings tab ───────────────────────────────────── */}
         {activeTab === 'settings' && (
-          <div className="bg-white border border-[#E8EDE9] rounded-xl overflow-hidden shadow-sm">
-            <div className="px-5 py-3 border-b border-[#E8EDE9] bg-[#FAFCFA]">
-              <h3 className="text-xs font-semibold uppercase tracking-wide text-[#4A5E52]">Platform Settings</h3>
-              <p className="text-xs text-[#9BB0A1] mt-0.5">Click the edit icon to change any value. Accepts JSON values.</p>
-            </div>
-            {loadingSettings ? (
-              <p className="text-sm text-center py-8 text-[#4A5E52]">Loading settings...</p>
-            ) : (
-              Object.entries(settingsMap).map(([key, value]) => (
-                <SettingRow
-                  key={key}
-                  settingKey={key}
-                  value={value}
-                  description={settingsMeta[key]?.description ?? null}
-                  onSave={handleSaveSetting}
-                />
-              ))
+          <div className="space-y-0">
+            {/* AI model picker card */}
+            {!loadingSettings && (
+              <AiModelCard settingsMap={settingsMap} onSave={handleSaveSetting} />
             )}
+
+            {/* Raw settings (hide ai_provider + ai_model — managed by card above) */}
+            <div className="bg-white border border-[#E8EDE9] rounded-xl overflow-hidden shadow-sm">
+              <div className="px-5 py-3 border-b border-[#E8EDE9] bg-[#FAFCFA]">
+                <h3 className="text-xs font-semibold uppercase tracking-wide text-[#4A5E52]">Platform Settings</h3>
+                <p className="text-xs text-[#9BB0A1] mt-0.5">Click the edit icon to change any value. Accepts JSON values.</p>
+              </div>
+              {loadingSettings ? (
+                <p className="text-sm text-center py-8 text-[#4A5E52]">Loading settings...</p>
+              ) : (
+                Object.entries(settingsMap)
+                  .filter(([key]) => key !== 'ai_provider' && key !== 'ai_model')
+                  .map(([key, value]) => (
+                    <SettingRow
+                      key={key}
+                      settingKey={key}
+                      value={value}
+                      description={settingsMeta[key]?.description ?? null}
+                      onSave={handleSaveSetting}
+                    />
+                  ))
+              )}
+            </div>
           </div>
         )}
       </div>

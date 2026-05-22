@@ -24,7 +24,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<ApiUser | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Exchange Firebase ID token for our backend JWT + user record
+  // Exchange Firebase ID token for our backend JWT + user record.
+  // If the backend is unreachable, fall back to the stored token or Firebase identity
+  // so the user doesn't get bounced back to the login page on every page load.
   const syncWithBackend = async () => {
     const fbUser = firebaseAuth.currentUser;
     if (!fbUser) { setUser(null); return; }
@@ -34,7 +36,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setToken(token);
       setUser(me);
     } catch {
-      setUser(null);
+      // Backend unreachable — try the stored JWT first
+      const storedToken = localStorage.getItem('cactus_token');
+      if (storedToken) {
+        try {
+          const { user: me } = await apiAuth.me();
+          setUser(me);
+          return;
+        } catch {
+          // stored token also stale; fall through
+        }
+      }
+      // Last resort: construct a minimal user from Firebase so ProtectedRoute passes
+      setUser({
+        id: fbUser.uid,
+        email: fbUser.email ?? '',
+        name: fbUser.displayName ?? fbUser.email?.split('@')[0] ?? 'User',
+        role: 'analyst',
+      });
     }
   };
 
