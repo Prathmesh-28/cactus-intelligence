@@ -4,6 +4,7 @@ import { ChevronRight, RefreshCw, Download, Search } from 'lucide-react';
 import { CactusLogo } from '../components/CactusLogo';
 import { PipelineProgress } from '../components/PipelineProgress';
 import { ManualCompanyForm, type ManualCompanyData } from '../components/ManualCompanyForm';
+import { ManualCompetitorsForm, ManualOrgChartForm, ManualTalentForm, ManualSignalsForm } from '../components/ManualStepForms';
 import { OverviewTab } from '../components/tabs/OverviewTab';
 import { OrgChartTab } from '../components/tabs/OrgChartTab';
 import { TalentInsightsTab } from '../components/tabs/TalentInsightsTab';
@@ -83,14 +84,29 @@ export function AnalysisDashboard() {
     return null;
   };
 
-  const handleManualSubmit = useCallback(async (data: ManualCompanyData) => {
+  const handleManualSubmit = useCallback(async (data: unknown, forStep: number) => {
     if (!analysis) return;
     setManualSubmitting(true);
     try {
-      await analysesApi.patchProfile(analysis.id, data);
-      setLocalAnalysis(prev => prev ? { ...prev, company_profile: data as unknown as Record<string, unknown> } : null);
+      if (forStep === 1) {
+        await analysesApi.patchProfile(analysis.id, data as ManualCompanyData);
+        setLocalAnalysis(prev => prev ? { ...prev, company_profile: data as Record<string, unknown> } : null);
+      } else if (forStep === 2) {
+        await analysesApi.patchCompetitors(analysis.id, data);
+        setLocalAnalysis(prev => prev ? { ...prev, competitors: data as ApiAnalysis['competitors'] } : null);
+      } else if (forStep === 3) {
+        await analysesApi.patchOrgCharts(analysis.id, data);
+        setLocalAnalysis(prev => prev ? { ...prev, org_charts: data as Record<string, unknown> } : null);
+      } else if (forStep === 4) {
+        await analysesApi.patchTalent(analysis.id, data);
+        setLocalAnalysis(prev => prev ? { ...prev, talent_insights: data as Record<string, unknown> } : null);
+      } else if (forStep === 5) {
+        await analysesApi.patchSignals(analysis.id, data);
+        setLocalAnalysis(prev => prev ? { ...prev, investment_signals: data as Record<string, unknown> } : null);
+      }
       setShowManualForm(false);
-      await retryStep(2); // skip step 1, run from step 2
+      // Continue pipeline from the next step (skip the failed one)
+      if (forStep < 5) await retryStep(forStep + 1);
     } finally {
       setManualSubmitting(false);
     }
@@ -181,14 +197,12 @@ export function AnalysisDashboard() {
               <div className="flex items-center justify-between text-sm text-[#C0392B]">
                 <span>Step {errorStep} failed. Partial data shown below.</span>
                 <div className="flex items-center gap-3">
-                  {errorStep === 1 && (
-                    <button
-                      onClick={() => setShowManualForm(v => !v)}
-                      className="flex items-center gap-1.5 font-medium text-[#1C3B2E] hover:underline"
-                    >
-                      ✏️ Enter details manually
-                    </button>
-                  )}
+                  <button
+                    onClick={() => setShowManualForm(v => !v)}
+                    className="flex items-center gap-1.5 font-medium text-[#1C3B2E] hover:underline"
+                  >
+                    ✏️ {showManualForm ? 'Hide form' : 'Enter manually'}
+                  </button>
                   <button onClick={() => retryStep(errorStep)} className="flex items-center gap-1.5 font-medium hover:underline">
                     <RefreshCw size={12} /> Retry Step {errorStep}
                   </button>
@@ -197,14 +211,29 @@ export function AnalysisDashboard() {
             </div>
           )}
 
-          {/* Manual company form — shown when step 1 fails */}
-          {showManualForm && errorStep === 1 && (
+          {/* Manual forms — shown for the failed step */}
+          {showManualForm && errorStep && (
             <div className="mb-6">
-              <ManualCompanyForm
-                companyName={companyName}
-                onSubmit={handleManualSubmit}
-                loading={manualSubmitting}
-              />
+              {errorStep === 1 && (
+                <ManualCompanyForm companyName={companyName}
+                  onSubmit={d => handleManualSubmit(d, 1)} loading={manualSubmitting} />
+              )}
+              {errorStep === 2 && (
+                <ManualCompetitorsForm companyName={companyName}
+                  onSubmit={d => handleManualSubmit(d, 2)} loading={manualSubmitting} />
+              )}
+              {errorStep === 3 && (
+                <ManualOrgChartForm companyName={companyName}
+                  onSubmit={d => handleManualSubmit(d, 3)} loading={manualSubmitting} />
+              )}
+              {errorStep === 4 && (
+                <ManualTalentForm companyName={companyName}
+                  onSubmit={d => handleManualSubmit(d, 4)} loading={manualSubmitting} />
+              )}
+              {errorStep === 5 && (
+                <ManualSignalsForm companyName={companyName}
+                  onSubmit={d => handleManualSubmit(d, 5)} loading={manualSubmitting} />
+              )}
             </div>
           )}
 
@@ -212,12 +241,12 @@ export function AnalysisDashboard() {
             !showManualForm ? (
               <div className="flex flex-col items-center justify-center py-20 text-center gap-3">
                 <p className="text-sm text-[#4A5E52]">No data available yet.</p>
-                {errorStep === 1 && (
+                {errorStep && (
                   <button
                     onClick={() => setShowManualForm(true)}
                     className="flex items-center gap-2 px-4 py-2 bg-[#1C3B2E] text-white text-sm rounded-xl hover:bg-[#2E6B4F] transition-colors"
                   >
-                    ✏️ Enter company details manually
+                    ✏️ Enter Step {errorStep} data manually
                   </button>
                 )}
               </div>
