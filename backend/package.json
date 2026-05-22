@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "ts-node-dev --respawn --transpile-only src/server.ts",
-    "build": "tsc --outDir dist",
+    "build": "tsc --outDir dist && cp src/db/schema.sql dist/db/schema.sql",
     "start": "node dist/server.js",
     "deploy": "npm run build && serverless deploy --stage prod",
     "deploy:dev": "npm run build && serverless deploy --stage dev",

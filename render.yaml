@@ -1,0 +1,28 @@
+services:
+  - type: web
+    name: cactus-api
+    env: node
+    rootDir: backend
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    plan: free
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: FRONTEND_URL
+        value: https://cactus-b40b1.web.app
+      - key: FIREBASE_API_KEY
+        value: AIzaSyDOcbWnWERAiJ21LHk1YLHg1OMuwbV5vi0
+      - key: JWT_SECRET
+        generateValue: true
+      - key: DATABASE_URL
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: GOOGLE_AI_API_KEY
+        sync: false
+      - key: LUSHA_API_KEY
+        sync: false
