@@ -76,7 +76,7 @@ const DEFAULT_SETTINGS = [
   },
 ];
 
-async function seed() {
+export async function runSeed(): Promise<void> {
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
@@ -89,16 +89,14 @@ async function seed() {
     );
 
     if (existing.rows.length > 0) {
-      // Update password in case it was reset
       await client.query(
-        'UPDATE users SET password_hash = $1, role = $2, is_active = TRUE WHERE email = $3',
-        [hash, 'admin', ADMIN_EMAIL]
+        'UPDATE users SET role = $1, is_active = TRUE WHERE email = $2',
+        ['admin', ADMIN_EMAIL]
       );
-      console.log(`✓ Admin user already exists — password reset to default`);
+      console.log(`✓ Admin user already exists`);
     } else {
       await client.query(
-        `INSERT INTO users (email, name, password_hash, role)
-         VALUES ($1, $2, $3, 'admin')`,
+        `INSERT INTO users (email, name, password_hash, role) VALUES ($1, $2, $3, 'admin')`,
         [ADMIN_EMAIL, ADMIN_NAME, hash]
       );
       console.log(`✓ Admin user created: ${ADMIN_EMAIL}`);
@@ -113,20 +111,19 @@ async function seed() {
         [s.key, s.value, s.description]
       );
     }
-    console.log(`✓ ${DEFAULT_SETTINGS.length} default settings upserted`);
+    console.log(`✓ ${DEFAULT_SETTINGS.length} settings upserted (ai_provider=google)`);
 
     await client.query('COMMIT');
-    console.log('\n🌵 Seed complete!');
-    console.log(`\nAdmin login:\n  Email:    ${ADMIN_EMAIL}\n  Password: ${ADMIN_PASSWORD}`);
-    console.log('\n⚠️  Change the admin password immediately after first login!\n');
+    console.log('🌵 Seed complete!');
   } catch (err) {
     await client.query('ROLLBACK');
-    console.error('Seed failed:', err);
-    process.exit(1);
+    throw err;
   } finally {
     client.release();
-    await pool.end();
   }
 }
 
-seed();
+// Run directly: npm run seed
+if (require.main === module) {
+  runSeed().then(() => pool.end()).catch(err => { console.error('Seed failed:', err); process.exit(1); });
+}
