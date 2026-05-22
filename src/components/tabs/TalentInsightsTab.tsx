@@ -1,4 +1,4 @@
-import { AlertTriangle, TrendingUp, TrendingDown, Minus, User, Briefcase } from 'lucide-react';
+import { AlertTriangle, TrendingUp, TrendingDown, Minus, User, Briefcase, ShieldAlert, BarChart2, Search } from 'lucide-react';
 import type { ApiAnalysis } from '../../lib/api';
 import { analyses } from '../../lib/api';
 import type { TalentInsights } from '../../types';
@@ -71,6 +71,7 @@ export function TalentInsightsTab({ analysis, onUpdate }: TalentInsightsTabProps
   }
 
   return (
+    <div className="space-y-6">
     <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
       {/* Left column */}
       <div className="space-y-6">
@@ -318,6 +319,171 @@ export function TalentInsightsTab({ analysis, onUpdate }: TalentInsightsTabProps
           </div>
         )}
       </div>
+    </div>
+
+    {/* ── Full-width sections below the 2-col grid ─────────── */}
+
+    {/* Governance Risks */}
+    {(insights.governanceRisks?.length ?? 0) > 0 && (
+      <div className="bg-white border border-[#E8EDE9] rounded-xl overflow-hidden shadow-sm mt-6">
+        <div className="px-5 py-3 border-b border-[#E8EDE9] bg-[#C0392B]/5 flex items-center gap-2">
+          <ShieldAlert size={14} className="text-[#C0392B]" />
+          <h3 className="text-xs font-semibold uppercase tracking-wide text-[#C0392B]">Governance Risks</h3>
+        </div>
+        <div className="divide-y divide-[#E8EDE9]">
+          {insights.governanceRisks!.map((r, i) => {
+            const sev = r.severity === 'critical' ? '#C0392B' : r.severity === 'high' ? '#E67E22' : '#4A5E52';
+            return (
+              <div key={i} className="p-5">
+                <div className="flex items-start gap-3">
+                  <span className="text-xs font-mono font-bold text-[#9BB0A1] mt-0.5">{r.riskId}</span>
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-1">
+                      <p className="font-semibold text-sm text-[#0F1A14]">{r.risk}</p>
+                      <span className="text-xs px-2 py-0.5 rounded-full font-medium capitalize" style={{ background: sev + '18', color: sev }}>{r.severity}</span>
+                      <span className="text-xs px-2 py-0.5 rounded-full bg-[#E8EDE9] text-[#4A5E52]">{r.urgency}</span>
+                    </div>
+                    <p className="text-xs text-[#4A5E52] mb-1">{r.description}</p>
+                    <p className="text-xs text-[#C0392B] mb-1"><span className="font-semibold">Board impact:</span> {r.boardImpact}</p>
+                    <p className="text-xs text-[#2E6B4F]"><span className="font-semibold">Mitigation:</span> {r.mitigation}</p>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    )}
+
+    {/* Structural Gap Analysis — all gap categories */}
+    {(['executiveGaps', 'operationalGaps', 'technicalGaps', 'revenueGaps'] as const).map(gapKey => {
+      const gaps = insights[gapKey];
+      if (!gaps?.length) return null;
+      const labels: Record<string, { label: string; color: string }> = {
+        executiveGaps:   { label: 'Executive Gaps', color: '#1C3B2E' },
+        operationalGaps: { label: 'Operational Gaps', color: '#E67E22' },
+        technicalGaps:   { label: 'Technical Gaps', color: '#2980B9' },
+        revenueGaps:     { label: 'Revenue Gaps', color: '#8E44AD' },
+      };
+      const { label, color } = labels[gapKey];
+      return (
+        <div key={gapKey} className="bg-white border border-[#E8EDE9] rounded-xl overflow-hidden shadow-sm mt-4">
+          <div className="px-5 py-3 border-b border-[#E8EDE9] bg-[#FAFCFA]">
+            <h3 className="text-xs font-semibold uppercase tracking-wide" style={{ color }}>{label}</h3>
+          </div>
+          <div className="divide-y divide-[#E8EDE9]">
+            {(gaps as Record<string, unknown>[]).map((g, i) => {
+              const sev = String(g.severity ?? '');
+              const sevColor = sev === 'critical' ? '#C0392B' : sev === 'high' ? '#E67E22' : sev === 'medium' ? '#2980B9' : '#4A5E52';
+              const id = String(g.gapId ?? `GAP-${i + 1}`);
+              const title = String(g.missingRole ?? g.missingFunction ?? '');
+              const observation = String(g.observation ?? '');
+              const recommendation = String(g.recommendation ?? '');
+              const extra = String(g.risk ?? g.riskToRevenue ?? g.scalingRisk ?? g.pipelineImpact ?? g.competitorBenchmark ?? '');
+              return (
+                <div key={i} className="p-5">
+                  <div className="flex items-start gap-3">
+                    <span className="text-xs font-mono font-bold text-[#9BB0A1] mt-0.5 shrink-0">{id}</span>
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-1">
+                        <p className="font-semibold text-sm text-[#0F1A14]">{title}</p>
+                        <span className="text-xs px-2 py-0.5 rounded-full font-medium capitalize" style={{ background: sevColor + '18', color: sevColor }}>{sev}</span>
+                      </div>
+                      <p className="text-xs text-[#4A5E52] mb-1">{observation}</p>
+                      {extra && <p className="text-xs text-[#C0392B] mb-1">{extra}</p>}
+                      <p className="text-xs text-[#2E6B4F]"><span className="font-semibold">Recommendation:</span> {recommendation}</p>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      );
+    })}
+
+    {/* Competitor Benchmark Matrix */}
+    {insights.benchmarkMatrix && (
+      <div className="bg-white border border-[#E8EDE9] rounded-xl overflow-hidden shadow-sm mt-4">
+        <div className="px-5 py-3 border-b border-[#E8EDE9] bg-[#FAFCFA] flex items-center gap-2">
+          <BarChart2 size={14} className="text-[#2E6B4F]" />
+          <h3 className="text-xs font-semibold uppercase tracking-wide text-[#4A5E52]">Org Maturity Benchmark Matrix</h3>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-xs">
+            <thead>
+              <tr className="bg-[#F8F6F1] border-b border-[#E8EDE9]">
+                <th className="text-left px-5 py-3 font-semibold text-[#4A5E52] uppercase tracking-wide">Company</th>
+                {insights.benchmarkMatrix.functions.map(fn => (
+                  <th key={fn} className="text-center px-3 py-3 font-semibold text-[#4A5E52] uppercase tracking-wide whitespace-nowrap">{fn}</th>
+                ))}
+                <th className="text-center px-5 py-3 font-semibold text-[#4A5E52] uppercase tracking-wide">Overall</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-[#E8EDE9]">
+              {insights.benchmarkMatrix.companies.map((co, i) => (
+                <tr key={i} className={i === 0 ? 'bg-[#F0F7F2]' : 'hover:bg-[#FAFCFA]'}>
+                  <td className="px-5 py-3 font-semibold text-[#0F1A14] whitespace-nowrap">
+                    {co.company}
+                    {i === 0 && <span className="ml-2 text-xs text-[#2E6B4F]">← Target</span>}
+                  </td>
+                  {co.scores.map((s, j) => (
+                    <td key={j} className="px-3 py-3 text-center">
+                      <div className="inline-flex flex-col items-center gap-1">
+                        <span className="font-bold" style={{ color: s >= 70 ? '#27AE60' : s >= 45 ? '#E67E22' : '#C0392B' }}>{s}</span>
+                        <div className="h-1 w-10 bg-[#E8EDE9] rounded-full">
+                          <div className="h-full rounded-full" style={{ width: `${s}%`, background: s >= 70 ? '#27AE60' : s >= 45 ? '#E67E22' : '#C0392B' }} />
+                        </div>
+                      </div>
+                    </td>
+                  ))}
+                  <td className="px-5 py-3 text-center">
+                    <span className="text-sm font-bold" style={{ color: co.overallScore >= 70 ? '#27AE60' : co.overallScore >= 45 ? '#E67E22' : '#C0392B' }}>
+                      {co.overallScore}
+                    </span>
+                    <p className="text-[10px] text-[#9BB0A1] mt-0.5">{co.classification}</p>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    )}
+
+    {/* Talent Prospects */}
+    {(insights.talentProspects?.length ?? 0) > 0 && (
+      <div className="bg-white border border-[#E8EDE9] rounded-xl overflow-hidden shadow-sm mt-4">
+        <div className="px-5 py-3 border-b border-[#E8EDE9] bg-[#FAFCFA] flex items-center gap-2">
+          <Search size={14} className="text-[#2E6B4F]" />
+          <h3 className="text-xs font-semibold uppercase tracking-wide text-[#4A5E52]">Talent Prospects — Competitor Pipeline</h3>
+        </div>
+        <div className="divide-y divide-[#E8EDE9]">
+          {insights.talentProspects!.map((p, i) => (
+            <div key={i} className="flex items-start gap-4 px-5 py-4">
+              <div className="w-8 h-8 rounded-full bg-[#1C3B2E]/10 flex items-center justify-center text-xs font-bold text-[#1C3B2E] shrink-0">
+                {p.name?.[0]?.toUpperCase() ?? '?'}
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 mb-0.5">
+                  <p className="font-semibold text-sm text-[#0F1A14]">{p.name}</p>
+                  <span className="text-xs text-[#4A5E52]">· {p.title}</span>
+                  <span className="text-xs px-2 py-0.5 rounded-full bg-[#E8EDE9] text-[#4A5E52]">{p.currentCompany}</span>
+                </div>
+                <p className="text-xs text-[#4A5E52] mb-1">{p.reasonForFit}</p>
+                {p.linkedinUrl && (
+                  <a href={p.linkedinUrl} target="_blank" rel="noopener noreferrer"
+                     className="text-xs text-[#0A66C2] hover:underline">LinkedIn Profile</a>
+                )}
+              </div>
+              {p.emailConfidence && (
+                <span className="text-xs px-2 py-0.5 rounded-full bg-[#E8EDE9] text-[#4A5E52] shrink-0">{p.emailConfidence} confidence</span>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+    )}
     </div>
   );
 }

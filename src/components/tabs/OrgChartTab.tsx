@@ -235,8 +235,22 @@ export function OrgChartTab({ orgChart, onRefresh }: OrgChartTabProps) {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h3 className="font-semibold text-[#0F1A14]">{orgChart.company}</h3>
-          <p className="text-xs text-[#4A5E52]">
+          <div className="flex items-center gap-3">
+            <h3 className="font-semibold text-[#0F1A14]">{orgChart.company}</h3>
+            {orgChart.orgMaturityScore != null && (
+              <span
+                className="text-xs px-2 py-0.5 rounded-full font-semibold border"
+                style={{
+                  color: orgChart.orgMaturityScore >= 70 ? '#27AE60' : orgChart.orgMaturityScore >= 45 ? '#E67E22' : '#C0392B',
+                  background: orgChart.orgMaturityScore >= 70 ? '#27AE6012' : orgChart.orgMaturityScore >= 45 ? '#E67E2212' : '#C0392B12',
+                  borderColor: orgChart.orgMaturityScore >= 70 ? '#27AE6030' : orgChart.orgMaturityScore >= 45 ? '#E67E2230' : '#C0392B30',
+                }}
+              >
+                Maturity {orgChart.orgMaturityScore}/100 · {orgChart.orgMaturityClassification}
+              </span>
+            )}
+          </div>
+          <p className="text-xs text-[#4A5E52] mt-0.5">
             {orgChart.totalEmployees} employees · Last researched: {orgChart.lastUpdated}
           </p>
         </div>
