@@ -189,9 +189,9 @@ export async function runOrgChartsStep(analysisId: string, companyName: string):
   const orgCharts: Record<string, unknown> = {};
 
   for (const company of allCompanies) {
+    let employeeCount = 'Unknown';
     try {
       let lushaContext = '';
-      let employeeCount = 'Unknown';
 
       if (lushaEnabled) {
         const { people, company: companyData } = await fetchOrgData(company, seniorityLevels);

@@ -10,10 +10,12 @@ import { settingsRouter } from './routes/settings';
 const app = express();
 
 const allowedOrigins = [
-  process.env.FRONTEND_URL ?? 'https://cactus-intelligence.vercel.app',
+  process.env.FRONTEND_URL,
+  'https://cactus-b40b1.web.app',
+  'https://cactus-b40b1.firebaseapp.com',
   'http://localhost:5173',
   'http://localhost:4173',
-];
+].filter(Boolean) as string[];
 
 app.use(helmet());
 app.use(cors({

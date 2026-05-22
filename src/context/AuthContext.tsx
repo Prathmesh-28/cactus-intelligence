@@ -47,12 +47,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           // stored token also stale; fall through
         }
       }
-      // Last resort: construct a minimal user from Firebase so ProtectedRoute passes
+      // Last resort: construct a minimal user from Firebase so ProtectedRoute passes.
+      // Preserve role from stale token if available so admins don't lose access.
+      let preservedRole: import('../lib/api').UserRole = 'analyst';
+      try {
+        const stale = localStorage.getItem('cactus_token');
+        if (stale) {
+          const payload = JSON.parse(atob(stale.split('.')[1]));
+          if (payload?.role) preservedRole = payload.role;
+        }
+      } catch { /* ignore decode errors */ }
       setUser({
         id: fbUser.uid,
         email: fbUser.email ?? '',
         name: fbUser.displayName ?? fbUser.email?.split('@')[0] ?? 'User',
-        role: 'analyst',
+        role: preservedRole,
       });
     }
   };
@@ -68,6 +77,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setLoading(false);
     });
     return unsub;
+  }, []);
+
+  // Proactively refresh the backend JWT every 20 minutes so it never silently expires mid-session
+  useEffect(() => {
+    const interval = setInterval(async () => {
+      if (firebaseAuth.currentUser) await syncWithBackend();
+    }, 20 * 60 * 1000);
+    return () => clearInterval(interval);
   }, []);
 
   const signIn = async (email: string, password: string) => {
