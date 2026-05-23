@@ -10,6 +10,7 @@ import { History } from './pages/History';
 import { Admin } from './pages/Admin';
 import { Profile } from './pages/Profile';
 import { OrgChartBuilder } from './pages/OrgChartBuilder';
+import { InvestorOrgPage } from './pages/InvestorOrgPage';
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { staleTime: 5 * 60_000, retry: 1 } },
@@ -35,6 +36,7 @@ export default function App() {
             <Route path="/admin" element={<ProtectedRoute><AdminRoute><Admin /></AdminRoute></ProtectedRoute>} />
             <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
             <Route path="/org-chart-builder" element={<ProtectedRoute><OrgChartBuilder /></ProtectedRoute>} />
+            <Route path="/investor-org" element={<ProtectedRoute><InvestorOrgPage /></ProtectedRoute>} />
           </Routes>
         </BrowserRouter>
       </AuthProvider>

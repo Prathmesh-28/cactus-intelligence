@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { Search, BarChart2, Users, TrendingUp, PenLine, Zap, Network } from 'lucide-react';
+import { Search, BarChart2, Users, TrendingUp, PenLine, Zap, Network, Shield } from 'lucide-react';
 import { CactusLogo } from '../components/CactusLogo';
 import { useAuth } from '../context/AuthContext';
 
@@ -171,6 +171,15 @@ export function Landing() {
               >
                 <Network size={14} />
                 Build Org Chart from LinkedIn
+              </Link>
+            )}
+            {user && (
+              <Link
+                to="/investor-org"
+                className="flex items-center gap-2 px-4 py-2 bg-amber-600 border border-amber-600 rounded-full text-sm text-white shadow-sm hover:bg-amber-500 transition-colors"
+              >
+                <Shield size={14} />
+                Investor Org Intelligence
               </Link>
             )}
           </div>

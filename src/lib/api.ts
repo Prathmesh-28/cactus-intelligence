@@ -169,6 +169,28 @@ export const orgFromLinkedin = {
     ),
 };
 
+// ── Investor Org Analysis ─────────────────────────────────────
+export interface InvestorAnalysisResult {
+  analysis: {
+    executive_summary: string;
+    investment_signals: Array<{ type: 'positive' | 'warning' | 'critical'; title: string; detail: string }>;
+    level_analysis: Array<{ level: number; label: string; strength: string; gap: string; missing_kpis: string[] }>;
+    person_analysis: Array<{ name: string; title: string; responsibility_gap: string; missing_kpis: string[]; risk: 'low' | 'medium' | 'high'; note: string }>;
+    top_actions: string[];
+    verdict: 'pass' | 'watchlist' | 'concern';
+    verdict_reason: string;
+  };
+  scores: { completeness: number; overallScore: number; levels: number; depts: number; ceoDirectReports: number; spanScore: number };
+  matchedRoles: Array<{ role: string; present: boolean; partial: boolean }>;
+  missingRoles: string[];
+  levelKpis: Record<number, string[]>;
+}
+
+export const investorOrg = {
+  analyse: (orgTree: Record<string, unknown>, industry: string, companyName: string, domain?: string) =>
+    request<InvestorAnalysisResult>('POST', '/api/investor-analysis', { orgTree, industry, companyName, domain }, PIPELINE_TIMEOUT_MS),
+};
+
 // ── Settings (admin) ──────────────────────────────────────────
 export const settings = {
   getAll: () => get<{ settings: Record<string, unknown>; meta: Record<string, unknown> }>('/api/settings'),
