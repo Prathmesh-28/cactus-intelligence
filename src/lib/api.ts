@@ -169,6 +169,16 @@ export const orgFromLinkedin = {
     ),
 };
 
+// ── API Keys (localhost admin) ────────────────────────────────
+export interface ApiKeyStatus {
+  set: boolean;
+  preview: string;
+}
+export const apiKeys = {
+  getStatus: () => get<{ keys: Record<string, ApiKeyStatus>; isLocalhost: boolean }>('/api/admin/api-keys'),
+  save: (keys: Record<string, string>) => post<{ updated: number; message: string }>('/api/admin/api-keys', keys),
+};
+
 // ── Investor Org Analysis ─────────────────────────────────────
 export interface InvestorAnalysisResult {
   analysis: {

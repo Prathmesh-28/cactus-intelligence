@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
-import { Users, Settings, Shield, Plus, Edit2, Trash2, RotateCcw, Check, X, ChevronDown, ChevronRight, Cpu, Save } from 'lucide-react';
+import { Users, Settings, Shield, Plus, Edit2, Trash2, RotateCcw, Check, X, ChevronDown, ChevronRight, Cpu, Save, Key, Eye, EyeOff, AlertTriangle } from 'lucide-react';
 import { Navbar } from '../components/Navbar';
-import { users as usersApi, settings as settingsApi, type ApiUser } from '../lib/api';
+import { users as usersApi, settings as settingsApi, apiKeys as apiKeysApi, type ApiUser, type ApiKeyStatus } from '../lib/api';
 import { useAuth } from '../context/AuthContext';
 
 // ── AI Provider / Model picker ────────────────────────────────
@@ -133,7 +133,7 @@ function AiModelCard({ settingsMap, onSave }: {
   );
 }
 
-type AdminTab = 'users' | 'settings' | 'audit';
+type AdminTab = 'users' | 'settings' | 'apikeys' | 'audit';
 
 // ── Inline-editable setting row ───────────────────────────────
 function SettingRow({ settingKey, value, description, onSave }: {
@@ -271,6 +271,198 @@ function UserRow({ u, currentUserId, onUpdate, onReset, onDeactivate }: {
   );
 }
 
+// ── API Keys Tab ───────────────────────────────────────────────
+const KEY_DEFS = [
+  {
+    id: 'google',
+    label: 'Google Gemini',
+    envVar: 'GOOGLE_AI_API_KEY',
+    placeholder: 'AIzaSy…',
+    color: '#4285F4',
+    docsHint: 'aistudio.google.com → Get API key',
+    description: 'Required for Gemini 2.0 Flash (default AI provider)',
+  },
+  {
+    id: 'anthropic',
+    label: 'Anthropic Claude',
+    envVar: 'ANTHROPIC_API_KEY',
+    placeholder: 'sk-ant-api03-…',
+    color: '#D97706',
+    docsHint: 'console.anthropic.com → API Keys',
+    description: 'For Claude Sonnet / Opus / Haiku models',
+  },
+  {
+    id: 'openai',
+    label: 'OpenAI / ChatGPT',
+    envVar: 'OPENAI_API_KEY',
+    placeholder: 'sk-proj-…',
+    color: '#10A37F',
+    docsHint: 'platform.openai.com → API keys',
+    description: 'For GPT-4o, o3-mini, o1 models',
+  },
+  {
+    id: 'lusha',
+    label: 'Lusha',
+    envVar: 'LUSHA_API_KEY',
+    placeholder: 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx',
+    color: '#8B5CF6',
+    docsHint: 'app.lusha.com → API Access',
+    description: 'Required for org chart enrichment from LinkedIn',
+  },
+];
+
+function ApiKeysTab() {
+  const [status, setStatus] = useState<Record<string, ApiKeyStatus>>({});
+  const [isLocalhost, setIsLocalhost] = useState(false);
+  const [drafts, setDrafts] = useState<Record<string, string>>({});
+  const [shown, setShown] = useState<Record<string, boolean>>({});
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    apiKeysApi.getStatus()
+      .then(r => { setStatus(r.keys); setIsLocalhost(r.isLocalhost); })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
+
+  const handleSave = async () => {
+    const toSave = Object.fromEntries(
+      Object.entries(drafts).filter(([, v]) => v.trim().length > 0)
+    );
+    if (Object.keys(toSave).length === 0) { setError('Enter at least one key.'); return; }
+    setSaving(true); setError(''); setSaved(false);
+    try {
+      await apiKeysApi.save(toSave);
+      // Refresh status
+      const r = await apiKeysApi.getStatus();
+      setStatus(r.keys);
+      setDrafts({});
+      setSaved(true);
+      setTimeout(() => setSaved(false), 3000);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to save');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (loading) return <p className="text-sm text-[#4A5E52] text-center py-10">Loading...</p>;
+
+  return (
+    <div className="space-y-4">
+      {!isLocalhost && (
+        <div className="flex items-start gap-3 bg-amber-50 border border-amber-200 rounded-xl px-5 py-4">
+          <AlertTriangle size={16} className="text-amber-600 shrink-0 mt-0.5" />
+          <div>
+            <p className="text-sm font-medium text-amber-800">Production environment detected</p>
+            <p className="text-xs text-amber-700 mt-0.5">
+              API keys cannot be changed via this UI on Render. Go to <strong>Render Dashboard → Environment</strong> to set them.
+              Keys shown below reflect server environment variables.
+            </p>
+          </div>
+        </div>
+      )}
+
+      <div className="bg-white border border-[#E8EDE9] rounded-xl overflow-hidden shadow-sm">
+        <div className="px-5 py-3 border-b border-[#E8EDE9] bg-[#FAFCFA] flex items-center gap-2">
+          <Key size={14} className="text-[#2E6B4F]" />
+          <h3 className="text-xs font-semibold uppercase tracking-wide text-[#4A5E52]">API Keys</h3>
+          <span className={`ml-auto text-xs px-2 py-0.5 rounded-full font-medium ${
+            isLocalhost ? 'bg-[#27AE60]/10 text-[#27AE60]' : 'bg-amber-100 text-amber-700'
+          }`}>
+            {isLocalhost ? 'localhost — editable' : 'production — read-only'}
+          </span>
+        </div>
+
+        <div className="divide-y divide-[#E8EDE9]">
+          {KEY_DEFS.map(k => {
+            const s = status[k.id];
+            return (
+              <div key={k.id} className="px-5 py-4">
+                <div className="flex items-start justify-between gap-4 mb-2.5">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span
+                        className="inline-block w-2.5 h-2.5 rounded-full shrink-0"
+                        style={{ background: k.color }}
+                      />
+                      <span className="text-sm font-semibold text-[#0F1A14]">{k.label}</span>
+                      {s?.set
+                        ? <span className="text-xs px-2 py-0.5 rounded-full bg-[#27AE60]/10 text-[#27AE60] font-medium">Set ✓</span>
+                        : <span className="text-xs px-2 py-0.5 rounded-full bg-[#C0392B]/8 text-[#C0392B] font-medium">Not set</span>
+                      }
+                    </div>
+                    <p className="text-xs text-[#4A5E52] mt-0.5">{k.description}</p>
+                    <p className="text-xs text-[#9BB0A1] mt-0.5">
+                      <code className="font-mono bg-[#F0F7F2] px-1 rounded">{k.envVar}</code>
+                      {' · '}
+                      <span className="italic">{k.docsHint}</span>
+                    </p>
+                  </div>
+                  {s?.set && s.preview && (
+                    <code className="text-xs font-mono bg-[#F8F6F1] border border-[#E8EDE9] px-2 py-1 rounded text-[#4A5E52] shrink-0">
+                      {s.preview}
+                    </code>
+                  )}
+                </div>
+
+                {isLocalhost && (
+                  <div className="relative">
+                    <input
+                      type={shown[k.id] ? 'text' : 'password'}
+                      value={drafts[k.id] ?? ''}
+                      onChange={e => setDrafts(prev => ({ ...prev, [k.id]: e.target.value }))}
+                      placeholder={s?.set ? `Current: ${s.preview} — paste to update` : k.placeholder}
+                      className="w-full px-3 py-2.5 pr-10 border border-[#E8EDE9] rounded-lg text-sm bg-[#F8F6F1] text-[#0F1A14] placeholder-[#C8D4CC] outline-none focus:border-[#2E6B4F] focus:ring-1 focus:ring-[#2E6B4F] font-mono"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShown(prev => ({ ...prev, [k.id]: !prev[k.id] }))}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-[#9BB0A1] hover:text-[#4A5E52]"
+                    >
+                      {shown[k.id] ? <EyeOff size={14} /> : <Eye size={14} />}
+                    </button>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+
+        {isLocalhost && (
+          <div className="px-5 py-4 border-t border-[#E8EDE9] bg-[#FAFCFA] flex items-center gap-3">
+            <button
+              onClick={handleSave}
+              disabled={saving}
+              className={`flex items-center gap-2 px-5 py-2 rounded-lg text-sm font-semibold transition-all ${
+                saved
+                  ? 'bg-[#27AE60]/10 text-[#27AE60] border border-[#27AE60]/30'
+                  : 'bg-[#1C3B2E] text-white hover:bg-[#152C22] disabled:opacity-60'
+              }`}
+            >
+              {saved ? <><Check size={14} /> Saved to .env</> : saving ? <><Save size={14} /> Saving…</> : <><Save size={14} /> Save Keys</>}
+            </button>
+            <p className="text-xs text-[#9BB0A1]">
+              Keys are written to <code className="font-mono bg-[#F0F7F2] px-1 rounded">backend/.env</code> and applied immediately — no restart needed.
+            </p>
+            {error && <p className="text-xs text-[#C0392B]">{error}</p>}
+          </div>
+        )}
+      </div>
+
+      <div className="bg-[#F0F7F2] border border-[#D4E0D7] rounded-xl px-5 py-4 text-xs text-[#4A5E52] space-y-1">
+        <p className="font-semibold text-[#1C3B2E]">How it works</p>
+        <p>• Keys are saved to <code className="font-mono bg-white/70 px-1 rounded">backend/.env</code> and never exposed to the browser.</p>
+        <p>• On Render (production), set keys in <strong>Dashboard → Environment Variables</strong>.</p>
+        <p>• The active AI provider is selected in <strong>Platform Settings → AI Model</strong>.</p>
+      </div>
+    </div>
+  );
+}
+
 // ── Main Admin Page ────────────────────────────────────────────
 export function Admin() {
   const { user: me } = useAuth();
@@ -347,8 +539,9 @@ export function Admin() {
   };
 
   const TABS: { id: AdminTab; label: string; icon: React.ReactNode }[] = [
-    { id: 'users', label: 'Team Members', icon: <Users size={16} /> },
+    { id: 'users',    label: 'Team Members',      icon: <Users size={16} /> },
     { id: 'settings', label: 'Platform Settings', icon: <Settings size={16} /> },
+    { id: 'apikeys',  label: 'API Keys',           icon: <Key size={16} /> },
   ];
 
   return (
@@ -479,6 +672,9 @@ export function Admin() {
             </div>
           </div>
         )}
+
+        {/* ── API Keys tab ───────────────────────────────────── */}
+        {activeTab === 'apikeys' && <ApiKeysTab />}
 
         {/* ── Settings tab ───────────────────────────────────── */}
         {activeTab === 'settings' && (

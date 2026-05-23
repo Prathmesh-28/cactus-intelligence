@@ -8,6 +8,7 @@ import { usersRouter } from './routes/users';
 import { settingsRouter } from './routes/settings';
 import { orgFromLinkedinRouter } from './routes/orgFromLinkedin';
 import { investorAnalysisRouter } from './routes/investorAnalysis';
+import { apiKeysRouter } from './routes/apiKeys';
 
 const app = express();
 
@@ -39,6 +40,7 @@ app.use('/api/users',     usersRouter);
 app.use('/api/settings',        settingsRouter);
 app.use('/api/org-from-linkedin', orgFromLinkedinRouter);
 app.use('/api/investor-analysis', investorAnalysisRouter);
+app.use('/api/admin/api-keys',    apiKeysRouter);
 
 app.get('/api/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString(), service: 'Cactus Intelligence API' });
